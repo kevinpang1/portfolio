@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Combined Stock Holdings Percent Dashboard</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #18212f;
+      --muted: #667085;
+      --line: #d9dee7;
+      --paper: #ffffff;
+      --bg: #f5f7fb;
+      --good: #15803d;
+      --bad: #b42318;
+      --amber: #b7791f;
+      --blue: #2264a8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+    .shell { max-width: 1360px; margin: 0 auto; padding: 28px; }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 24px;
+      margin-bottom: 22px;
+    }
+    h1 { margin: 0; font-size: clamp(28px, 4vw, 46px); line-height: 1; letter-spacing: 0; }
+    .sub { margin-top: 10px; color: var(--muted); font-size: 14px; }
+    .stamp { color: var(--muted); font-size: 13px; text-align: right; min-width: 220px; }
+    .kpis { display: grid; grid-template-columns: repeat(3, minmax(170px, 1fr)); gap: 12px; margin-bottom: 18px; }
+    .panel, .kpi {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(16, 24, 40, .05);
+    }
+    .kpi { padding: 16px; min-height: 100px; }
+    .kpi .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+    .kpi .value { margin-top: 10px; font-size: 26px; font-weight: 750; white-space: nowrap; }
+    .kpi .note { margin-top: 6px; color: var(--muted); font-size: 13px; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 18px; align-items: start; }
+    .panel { padding: 18px; }
+    .panel h2 { margin: 0 0 14px; font-size: 18px; }
+    .chart-row { display: grid; grid-template-columns: minmax(320px, 520px) minmax(320px, 1fr); gap: 24px; align-items: center; }
+    .donut { width: 100%; max-width: 520px; aspect-ratio: 1; display: block; justify-self: center; }
+    .donut path { cursor: pointer; transition: opacity .15s ease, transform .15s ease; transform-origin: 210px 210px; }
+    .donut path:hover, .donut path:focus { opacity: .86; transform: scale(1.012); outline: none; }
+    .tooltip {
+      position: fixed;
+      z-index: 20;
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(10px, 10px);
+      background: #18212f;
+      color: #fff;
+      border-radius: 6px;
+      padding: 9px 10px;
+      font-size: 13px;
+      line-height: 1.35;
+      box-shadow: 0 10px 24px rgba(16, 24, 40, .18);
+      white-space: pre-line;
+    }
+    .tooltip.is-visible { opacity: 1; }
+    .legend { display: grid; gap: 8px; max-height: 500px; overflow: auto; padding-right: 4px; }
+    .legend-item { display: grid; grid-template-columns: 14px 1fr auto; gap: 8px; align-items: center; font-size: 13px; }
+    .swatch { width: 12px; height: 12px; border-radius: 2px; }
+    .legend small { color: var(--muted); }
+    .gain { color: var(--good); }
+    .loss { color: var(--bad); }
+    .flat { color: var(--amber); }
+    .tables { display: grid; gap: 18px; margin-top: 18px; }
+    .toolbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 12px; }
+    input {
+      width: min(340px, 100%);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 14px;
+      color: var(--ink);
+      background: #fff;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 10px 9px; border-bottom: 1px solid #edf0f5; vertical-align: middle; }
+    th { text-align: left; color: #475467; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; background: #fafbfe; position: sticky; top: 0; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .sort-button {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      font: inherit;
+      letter-spacing: inherit;
+      padding: 0;
+      text-transform: inherit;
+    }
+    .sort-button::after { content: "  sort"; color: #98a2b3; }
+    .sort-button[aria-sort="ascending"]::after { content: "  asc"; color: var(--blue); }
+    .sort-button[aria-sort="descending"]::after { content: "  desc"; color: var(--blue); }
+    .table-wrap { max-height: 640px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+    .bar { height: 7px; background: #e8edf4; border-radius: 99px; overflow: hidden; min-width: 72px; margin-bottom: 4px; }
+    .bar span { display: block; height: 100%; background: var(--blue); border-radius: 99px; }
+    .accounts { display: grid; gap: 10px; }
+    .account-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; font-size: 13px; }
+    .account-row .bar { grid-column: 1 / -1; }
+    @media (max-width: 1100px) {
+      .chart-row { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 820px) {
+      .shell { padding: 18px; }
+      header { align-items: flex-start; flex-direction: column; }
+      .stamp { text-align: left; }
+      .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 560px) {
+      .kpis { grid-template-columns: 1fr; }
+      th:nth-child(2), td:nth-child(2), th:nth-child(5), td:nth-child(5) { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div>
+        <h1>Combined Stock Holdings</h1>
+        <div class="sub">Percent-only view: allocation is portfolio weight, performance is Gain/Loss %. Supplemental portfolio Gain/Loss % is calculated from Total Return.</div>
+      </div>
+      <div class="stamp">Source as of 08:16 PM ET, 05/06/2026<br>Dashboard generated 2026-05-06 18:02</div>
+    </header>
+
+    <section class="kpis">
+      <div class="kpi"><div class="label">Largest Weight</div><div class="value">9.7%</div><div class="note">GOOG</div></div>
+      <div class="kpi"><div class="label">Top Gain %</div><div class="value gain">314.6%</div><div class="note">NVDA</div></div>
+      <div class="kpi"><div class="label">Lowest Gain %</div><div class="value loss">-56.6%</div><div class="note">FISV</div></div>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <h2>Portfolio Weight %</h2>
+        <div class="chart-row">
+          
+      <svg class="donut" viewBox="0 0 420 420" role="img">
+        <path d="M 210.00 210.00 L 312.26 64.31 A 178.00 178.00 0 0 0 210.00 32.00 Z" fill="#087443" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="GOOG
+Portfolio weight: 9.7%
+Gain/Loss: 144.1%" aria-label="GOOG: 9.7% weight, 144.1% gain/loss"></path><path d="M 210.00 210.00 L 349.16 99.01 A 178.00 178.00 0 0 0 312.26 64.31 Z" fill="#16a163" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="AMZN
+Portfolio weight: 4.5%
+Gain/Loss: 33.4%" aria-label="AMZN: 4.5% weight, 33.4% gain/loss"></path><path d="M 210.00 210.00 L 374.74 142.57 A 178.00 178.00 0 0 0 349.16 99.01 Z" fill="#d97059" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="BA
+Portfolio weight: 4.5%
+Gain/Loss: -3.3%" aria-label="BA: 4.5% weight, -3.3% gain/loss"></path><path d="M 210.00 210.00 L 386.50 186.92 A 178.00 178.00 0 0 0 374.74 142.57 Z" fill="#67b26f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="TSLA
+Portfolio weight: 4.1%
+Gain/Loss: 18.8%" aria-label="TSLA: 4.1% weight, 18.8% gain/loss"></path><path d="M 210.00 210.00 L 387.05 228.34 A 178.00 178.00 0 0 0 386.50 186.92 Z" fill="#16a163" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="BRK/B
+Portfolio weight: 3.7%
+Gain/Loss: 31.8%" aria-label="BRK/B: 3.7% weight, 31.8% gain/loss"></path><path d="M 210.00 210.00 L 378.43 267.59 A 178.00 178.00 0 0 0 387.05 228.34 Z" fill="#67b26f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="TCEHY
+Portfolio weight: 3.6%
+Gain/Loss: 16.4%" aria-label="TCEHY: 3.6% weight, 16.4% gain/loss"></path><path d="M 210.00 210.00 L 362.95 301.04 A 178.00 178.00 0 0 0 378.43 267.59 Z" fill="#087443" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="TSM
+Portfolio weight: 3.3%
+Gain/Loss: 112.3%" aria-label="TSM: 3.3% weight, 112.3% gain/loss"></path><path d="M 210.00 210.00 L 341.13 330.37 A 178.00 178.00 0 0 0 362.95 301.04 Z" fill="#087443" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="NVDA
+Portfolio weight: 3.3%
+Gain/Loss: 314.6%" aria-label="NVDA: 3.3% weight, 314.6% gain/loss"></path><path d="M 210.00 210.00 L 315.70 353.22 A 178.00 178.00 0 0 0 341.13 330.37 Z" fill="#d6a84f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="UNH
+Portfolio weight: 3.1%
+Gain/Loss: 5.1%" aria-label="UNH: 3.1% weight, 5.1% gain/loss"></path><path d="M 210.00 210.00 L 293.76 367.06 A 178.00 178.00 0 0 0 315.70 353.22 Z" fill="#087443" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="ASML
+Portfolio weight: 2.3%
+Gain/Loss: 81.1%" aria-label="ASML: 2.3% weight, 81.1% gain/loss"></path><path d="M 210.00 210.00 L 270.63 377.36 A 178.00 178.00 0 0 0 293.76 367.06 Z" fill="#d97059" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="UPS
+Portfolio weight: 2.3%
+Gain/Loss: -3.5%" aria-label="UPS: 2.3% weight, -3.5% gain/loss"></path><path d="M 210.00 210.00 L 248.03 383.89 A 178.00 178.00 0 0 0 270.63 377.36 Z" fill="#087443" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="MRVL
+Portfolio weight: 2.1%
+Gain/Loss: 121.4%" aria-label="MRVL: 2.1% weight, 121.4% gain/loss"></path><path d="M 210.00 210.00 L 225.14 387.35 A 178.00 178.00 0 0 0 248.03 383.89 Z" fill="#b42318" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="LVMUY
+Portfolio weight: 2.1%
+Gain/Loss: -19.8%" aria-label="LVMUY: 2.1% weight, -19.8% gain/loss"></path><path d="M 210.00 210.00 L 203.14 387.87 A 178.00 178.00 0 0 0 225.14 387.35 Z" fill="#087443" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="COST
+Portfolio weight: 2.0%
+Gain/Loss: 196.9%" aria-label="COST: 2.0% weight, 196.9% gain/loss"></path><path d="M 210.00 210.00 L 182.70 385.89 A 178.00 178.00 0 0 0 203.14 387.87 Z" fill="#d97059" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="MSFT
+Portfolio weight: 1.8%
+Gain/Loss: -1.8%" aria-label="MSFT: 1.8% weight, -1.8% gain/loss"></path><path d="M 210.00 210.00 L 162.93 381.66 A 178.00 178.00 0 0 0 182.70 385.89 Z" fill="#67b26f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="AAPL
+Portfolio weight: 1.8%
+Gain/Loss: 24.6%" aria-label="AAPL: 1.8% weight, 24.6% gain/loss"></path><path d="M 210.00 210.00 L 144.40 375.47 A 178.00 178.00 0 0 0 162.93 381.66 Z" fill="#67b26f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="AXP
+Portfolio weight: 1.7%
+Gain/Loss: 14.3%" aria-label="AXP: 1.7% weight, 14.3% gain/loss"></path><path d="M 210.00 210.00 L 126.72 367.32 A 178.00 178.00 0 0 0 144.40 375.47 Z" fill="#087443" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="AMD
+Portfolio weight: 1.7%
+Gain/Loss: 184.4%" aria-label="AMD: 1.7% weight, 184.4% gain/loss"></path><path d="M 210.00 210.00 L 110.47 357.57 A 178.00 178.00 0 0 0 126.72 367.32 Z" fill="#b42318" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="LULU
+Portfolio weight: 1.7%
+Gain/Loss: -37.1%" aria-label="LULU: 1.7% weight, -37.1% gain/loss"></path><path d="M 210.00 210.00 L 95.85 346.58 A 178.00 178.00 0 0 0 110.47 357.57 Z" fill="#16a163" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="H
+Portfolio weight: 1.6%
+Gain/Loss: 27.6%" aria-label="H: 1.6% weight, 27.6% gain/loss"></path><path d="M 210.00 210.00 L 82.65 334.36 A 178.00 178.00 0 0 0 95.85 346.58 Z" fill="#d6a84f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="HOOD
+Portfolio weight: 1.6%
+Gain/Loss: 5.4%" aria-label="HOOD: 1.6% weight, 5.4% gain/loss"></path><path d="M 210.00 210.00 L 71.11 321.33 A 178.00 178.00 0 0 0 82.65 334.36 Z" fill="#67b26f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="CVX
+Portfolio weight: 1.6%
+Gain/Loss: 9.5%" aria-label="CVX: 1.6% weight, 9.5% gain/loss"></path><path d="M 210.00 210.00 L 60.92 307.26 A 178.00 178.00 0 0 0 71.11 321.33 Z" fill="#16a163" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="JPM
+Portfolio weight: 1.6%
+Gain/Loss: 48.4%" aria-label="JPM: 1.6% weight, 48.4% gain/loss"></path><path d="M 210.00 210.00 L 52.31 292.58 A 178.00 178.00 0 0 0 60.92 307.26 Z" fill="#b42318" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="CRM
+Portfolio weight: 1.5%
+Gain/Loss: -30.9%" aria-label="CRM: 1.5% weight, -30.9% gain/loss"></path><path d="M 210.00 210.00 L 45.40 277.75 A 178.00 178.00 0 0 0 52.31 292.58 Z" fill="#b42318" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="NKE
+Portfolio weight: 1.5%
+Gain/Loss: -28.0%" aria-label="NKE: 1.5% weight, -28.0% gain/loss"></path><path d="M 210.00 210.00 L 40.53 264.44 A 178.00 178.00 0 0 0 45.40 277.75 Z" fill="#67b26f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="CRWD
+Portfolio weight: 1.3%
+Gain/Loss: 14.3%" aria-label="CRWD: 1.3% weight, 14.3% gain/loss"></path><path d="M 210.00 210.00 L 36.75 250.86 A 178.00 178.00 0 0 0 40.53 264.44 Z" fill="#087443" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="SPYM
+Portfolio weight: 1.3%
+Gain/Loss: 99.1%" aria-label="SPYM: 1.3% weight, 99.1% gain/loss"></path><path d="M 210.00 210.00 L 34.33 238.69 A 178.00 178.00 0 0 0 36.75 250.86 Z" fill="#d97059" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="AMT
+Portfolio weight: 1.1%
+Gain/Loss: -5.2%" aria-label="AMT: 1.1% weight, -5.2% gain/loss"></path><path d="M 210.00 210.00 L 32.77 226.53 A 178.00 178.00 0 0 0 34.33 238.69 Z" fill="#087443" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="INTC
+Portfolio weight: 1.1%
+Gain/Loss: 245.8%" aria-label="INTC: 1.1% weight, 245.8% gain/loss"></path><path d="M 210.00 210.00 L 32.08 215.20 A 178.00 178.00 0 0 0 32.77 226.53 Z" fill="#d6a84f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="PANW
+Portfolio weight: 1.0%
+Gain/Loss: 0.9%" aria-label="PANW: 1.0% weight, 0.9% gain/loss"></path><path d="M 210.00 210.00 L 32.08 204.61 A 178.00 178.00 0 0 0 32.08 215.20 Z" fill="#b42318" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="ALK
+Portfolio weight: 0.9%
+Gain/Loss: -19.5%" aria-label="ALK: 0.9% weight, -19.5% gain/loss"></path><path d="M 210.00 210.00 L 32.69 194.29 A 178.00 178.00 0 0 0 32.08 204.61 Z" fill="#67b26f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="ELV
+Portfolio weight: 0.9%
+Gain/Loss: 13.1%" aria-label="ELV: 0.9% weight, 13.1% gain/loss"></path><path d="M 210.00 210.00 L 33.88 184.17 A 178.00 178.00 0 0 0 32.69 194.29 Z" fill="#d97059" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="DHI
+Portfolio weight: 0.9%
+Gain/Loss: -8.1%" aria-label="DHI: 0.9% weight, -8.1% gain/loss"></path><path d="M 210.00 210.00 L 35.64 174.20 A 178.00 178.00 0 0 0 33.88 184.17 Z" fill="#67b26f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="MRK
+Portfolio weight: 0.9%
+Gain/Loss: 20.4%" aria-label="MRK: 0.9% weight, 20.4% gain/loss"></path><path d="M 210.00 210.00 L 37.88 164.63 A 178.00 178.00 0 0 0 35.64 174.20 Z" fill="#b42318" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="PYPL
+Portfolio weight: 0.9%
+Gain/Loss: -29.3%" aria-label="PYPL: 0.9% weight, -29.3% gain/loss"></path><path d="M 210.00 210.00 L 40.36 156.09 A 178.00 178.00 0 0 0 37.88 164.63 Z" fill="#b42318" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="NVO
+Portfolio weight: 0.8%
+Gain/Loss: -14.0%" aria-label="NVO: 0.8% weight, -14.0% gain/loss"></path><path d="M 210.00 210.00 L 43.14 148.03 A 178.00 178.00 0 0 0 40.36 156.09 Z" fill="#087443" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="MS
+Portfolio weight: 0.8%
+Gain/Loss: 94.2%" aria-label="MS: 0.8% weight, 94.2% gain/loss"></path><path d="M 210.00 210.00 L 46.26 140.18 A 178.00 178.00 0 0 0 43.14 148.03 Z" fill="#d6a84f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="META
+Portfolio weight: 0.8%
+Gain/Loss: 2.2%" aria-label="META: 0.8% weight, 2.2% gain/loss"></path><path d="M 210.00 210.00 L 49.72 132.58 A 178.00 178.00 0 0 0 46.26 140.18 Z" fill="#d97059" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="EL
+Portfolio weight: 0.7%
+Gain/Loss: -6.4%" aria-label="EL: 0.7% weight, -6.4% gain/loss"></path><path d="M 210.00 210.00 L 53.33 125.52 A 178.00 178.00 0 0 0 49.72 132.58 Z" fill="#b42318" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="BX
+Portfolio weight: 0.7%
+Gain/Loss: -17.1%" aria-label="BX: 0.7% weight, -17.1% gain/loss"></path><path d="M 210.00 210.00 L 57.24 118.63 A 178.00 178.00 0 0 0 53.33 125.52 Z" fill="#67b26f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="HLT
+Portfolio weight: 0.7%
+Gain/Loss: 21.9%" aria-label="HLT: 0.7% weight, 21.9% gain/loss"></path><path d="M 210.00 210.00 L 61.34 112.10 A 178.00 178.00 0 0 0 57.24 118.63 Z" fill="#b42318" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="LVMHF
+Portfolio weight: 0.7%
+Gain/Loss: -28.3%" aria-label="LVMHF: 0.7% weight, -28.3% gain/loss"></path><path d="M 210.00 210.00 L 65.71 105.77 A 178.00 178.00 0 0 0 61.34 112.10 Z" fill="#16a163" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="UAL
+Portfolio weight: 0.7%
+Gain/Loss: 39.3%" aria-label="UAL: 0.7% weight, 39.3% gain/loss"></path><path d="M 210.00 210.00 L 70.34 99.64 A 178.00 178.00 0 0 0 65.71 105.77 Z" fill="#67b26f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="COMP
+Portfolio weight: 0.7%
+Gain/Loss: 20.2%" aria-label="COMP: 0.7% weight, 20.2% gain/loss"></path><path d="M 210.00 210.00 L 75.07 93.91 A 178.00 178.00 0 0 0 70.34 99.64 Z" fill="#67b26f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="TRV
+Portfolio weight: 0.7%
+Gain/Loss: 20.3%" aria-label="TRV: 0.7% weight, 20.3% gain/loss"></path><path d="M 210.00 210.00 L 80.02 88.39 A 178.00 178.00 0 0 0 75.07 93.91 Z" fill="#b42318" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="RACE
+Portfolio weight: 0.7%
+Gain/Loss: -15.5%" aria-label="RACE: 0.7% weight, -15.5% gain/loss"></path><path d="M 210.00 210.00 L 85.00 83.27 A 178.00 178.00 0 0 0 80.02 88.39 Z" fill="#b42318" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="FISV
+Portfolio weight: 0.6%
+Gain/Loss: -56.6%" aria-label="FISV: 0.6% weight, -56.6% gain/loss"></path><path d="M 210.00 210.00 L 89.99 78.54 A 178.00 178.00 0 0 0 85.00 83.27 Z" fill="#16a163" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="NET
+Portfolio weight: 0.6%
+Gain/Loss: 26.7%" aria-label="NET: 0.6% weight, 26.7% gain/loss"></path><path d="M 210.00 210.00 L 94.87 74.25 A 178.00 178.00 0 0 0 89.99 78.54 Z" fill="#16a163" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="BAC
+Portfolio weight: 0.6%
+Gain/Loss: 46.5%" aria-label="BAC: 0.6% weight, 46.5% gain/loss"></path><path d="M 210.00 210.00 L 99.82 70.20 A 178.00 178.00 0 0 0 94.87 74.25 Z" fill="#b42318" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="BXP
+Portfolio weight: 0.6%
+Gain/Loss: -12.5%" aria-label="BXP: 0.6% weight, -12.5% gain/loss"></path><path d="M 210.00 210.00 L 104.79 66.42 A 178.00 178.00 0 0 0 99.82 70.20 Z" fill="#d97059" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="ISRG
+Portfolio weight: 0.6%
+Gain/Loss: -0.6%" aria-label="ISRG: 0.6% weight, -0.6% gain/loss"></path><path d="M 210.00 210.00 L 109.75 62.92 A 178.00 178.00 0 0 0 104.79 66.42 Z" fill="#d6a84f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="OXY
+Portfolio weight: 0.5%
+Gain/Loss: 0.1%" aria-label="OXY: 0.5% weight, 0.1% gain/loss"></path><path d="M 210.00 210.00 L 114.66 59.69 A 178.00 178.00 0 0 0 109.75 62.92 Z" fill="#16a163" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="SPY
+Portfolio weight: 0.5%
+Gain/Loss: 35.4%" aria-label="SPY: 0.5% weight, 35.4% gain/loss"></path><path d="M 210.00 210.00 L 119.22 56.89 A 178.00 178.00 0 0 0 114.66 59.69 Z" fill="#d97059" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="HD
+Portfolio weight: 0.5%
+Gain/Loss: -9.8%" aria-label="HD: 0.5% weight, -9.8% gain/loss"></path><path d="M 210.00 210.00 L 123.85 54.23 A 178.00 178.00 0 0 0 119.22 56.89 Z" fill="#d6a84f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="COF
+Portfolio weight: 0.5%
+Gain/Loss: 2.3%" aria-label="COF: 0.5% weight, 2.3% gain/loss"></path><path d="M 210.00 210.00 L 128.52 51.75 A 178.00 178.00 0 0 0 123.85 54.23 Z" fill="#67b26f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="CRWV
+Portfolio weight: 0.5%
+Gain/Loss: 13.3%" aria-label="CRWV: 0.5% weight, 13.3% gain/loss"></path><path d="M 210.00 210.00 L 133.25 49.40 A 178.00 178.00 0 0 0 128.52 51.75 Z" fill="#b42318" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="RKT
+Portfolio weight: 0.5%
+Gain/Loss: -24.5%" aria-label="RKT: 0.5% weight, -24.5% gain/loss"></path><path d="M 210.00 210.00 L 137.90 47.26 A 178.00 178.00 0 0 0 133.25 49.40 Z" fill="#67b26f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="D
+Portfolio weight: 0.5%
+Gain/Loss: 10.9%" aria-label="D: 0.5% weight, 10.9% gain/loss"></path><path d="M 210.00 210.00 L 142.54 45.28 A 178.00 178.00 0 0 0 137.90 47.26 Z" fill="#16a163" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="DAL
+Portfolio weight: 0.5%
+Gain/Loss: 52.7%" aria-label="DAL: 0.5% weight, 52.7% gain/loss"></path><path d="M 210.00 210.00 L 146.81 43.59 A 178.00 178.00 0 0 0 142.54 45.28 Z" fill="#b42318" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="CMCSA
+Portfolio weight: 0.4%
+Gain/Loss: -25.1%" aria-label="CMCSA: 0.4% weight, -25.1% gain/loss"></path><path d="M 210.00 210.00 L 150.95 42.08 A 178.00 178.00 0 0 0 146.81 43.59 Z" fill="#67b26f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="QQQ
+Portfolio weight: 0.4%
+Gain/Loss: 20.3%" aria-label="QQQ: 0.4% weight, 20.3% gain/loss"></path><path d="M 210.00 210.00 L 155.13 40.67 A 178.00 178.00 0 0 0 150.95 42.08 Z" fill="#d6a84f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="VST
+Portfolio weight: 0.4%
+Gain/Loss: 0.8%" aria-label="VST: 0.4% weight, 0.8% gain/loss"></path><path d="M 210.00 210.00 L 159.33 39.36 A 178.00 178.00 0 0 0 155.13 40.67 Z" fill="#b42318" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="RTX
+Portfolio weight: 0.4%
+Gain/Loss: -12.0%" aria-label="RTX: 0.4% weight, -12.0% gain/loss"></path><path d="M 210.00 210.00 L 163.43 38.20 A 178.00 178.00 0 0 0 159.33 39.36 Z" fill="#d6a84f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="AAL
+Portfolio weight: 0.4%
+Gain/Loss: 5.8%" aria-label="AAL: 0.4% weight, 5.8% gain/loss"></path><path d="M 210.00 210.00 L 167.45 37.16 A 178.00 178.00 0 0 0 163.43 38.20 Z" fill="#d97059" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="ADBE
+Portfolio weight: 0.4%
+Gain/Loss: -0.2%" aria-label="ADBE: 0.4% weight, -0.2% gain/loss"></path><path d="M 210.00 210.00 L 171.43 36.23 A 178.00 178.00 0 0 0 167.45 37.16 Z" fill="#d97059" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="AKAM
+Portfolio weight: 0.4%
+Gain/Loss: -0.1%" aria-label="AKAM: 0.4% weight, -0.1% gain/loss"></path><path d="M 210.00 210.00 L 175.37 35.40 A 178.00 178.00 0 0 0 171.43 36.23 Z" fill="#087443" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="SOFI
+Portfolio weight: 0.4%
+Gain/Loss: 78.3%" aria-label="SOFI: 0.4% weight, 78.3% gain/loss"></path><path d="M 210.00 210.00 L 179.12 34.70 A 178.00 178.00 0 0 0 175.37 35.40 Z" fill="#b42318" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="SNAP
+Portfolio weight: 0.3%
+Gain/Loss: -48.5%" aria-label="SNAP: 0.3% weight, -48.5% gain/loss"></path><path d="M 210.00 210.00 L 182.87 34.08 A 178.00 178.00 0 0 0 179.12 34.70 Z" fill="#087443" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="IEFA
+Portfolio weight: 0.3%
+Gain/Loss: 74.5%" aria-label="IEFA: 0.3% weight, 74.5% gain/loss"></path><path d="M 210.00 210.00 L 186.57 33.55 A 178.00 178.00 0 0 0 182.87 34.08 Z" fill="#67b26f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="NBIS
+Portfolio weight: 0.3%
+Gain/Loss: 23.1%" aria-label="NBIS: 0.3% weight, 23.1% gain/loss"></path><path d="M 210.00 210.00 L 190.17 33.11 A 178.00 178.00 0 0 0 186.57 33.55 Z" fill="#d6a84f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="NOK
+Portfolio weight: 0.3%
+Gain/Loss: 0.3%" aria-label="NOK: 0.3% weight, 0.3% gain/loss"></path><path d="M 210.00 210.00 L 193.32 32.78 A 178.00 178.00 0 0 0 190.17 33.11 Z" fill="#d97059" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="NFLX
+Portfolio weight: 0.3%
+Gain/Loss: -7.5%" aria-label="NFLX: 0.3% weight, -7.5% gain/loss"></path><path d="M 210.00 210.00 L 196.33 32.53 A 178.00 178.00 0 0 0 193.32 32.78 Z" fill="#b42318" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="RBLX
+Portfolio weight: 0.3%
+Gain/Loss: -43.5%" aria-label="RBLX: 0.3% weight, -43.5% gain/loss"></path><path d="M 210.00 210.00 L 198.59 32.37 A 178.00 178.00 0 0 0 196.33 32.53 Z" fill="#087443" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="IEMG
+Portfolio weight: 0.2%
+Gain/Loss: 70.7%" aria-label="IEMG: 0.2% weight, 70.7% gain/loss"></path><path d="M 210.00 210.00 L 200.74 32.24 A 178.00 178.00 0 0 0 198.59 32.37 Z" fill="#b42318" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="INTU
+Portfolio weight: 0.2%
+Gain/Loss: -35.3%" aria-label="INTU: 0.2% weight, -35.3% gain/loss"></path><path d="M 210.00 210.00 L 202.73 32.15 A 178.00 178.00 0 0 0 200.74 32.24 Z" fill="#b42318" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="REGN
+Portfolio weight: 0.2%
+Gain/Loss: -30.3%" aria-label="REGN: 0.2% weight, -30.3% gain/loss"></path><path d="M 210.00 210.00 L 204.26 32.09 A 178.00 178.00 0 0 0 202.73 32.15 Z" fill="#087443" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="IJR
+Portfolio weight: 0.1%
+Gain/Loss: 92.8%" aria-label="IJR: 0.1% weight, 92.8% gain/loss"></path><path d="M 210.00 210.00 L 205.70 32.05 A 178.00 178.00 0 0 0 204.26 32.09 Z" fill="#087443" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="SPMD
+Portfolio weight: 0.1%
+Gain/Loss: 103.3%" aria-label="SPMD: 0.1% weight, 103.3% gain/loss"></path><path d="M 210.00 210.00 L 207.06 32.02 A 178.00 178.00 0 0 0 205.70 32.05 Z" fill="#d6a84f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="LUV
+Portfolio weight: 0.1%
+Gain/Loss: 4.3%" aria-label="LUV: 0.1% weight, 4.3% gain/loss"></path><path d="M 210.00 210.00 L 208.38 32.01 A 178.00 178.00 0 0 0 207.06 32.02 Z" fill="#67b26f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="GLD
+Portfolio weight: 0.1%
+Gain/Loss: 9.6%" aria-label="GLD: 0.1% weight, 9.6% gain/loss"></path><path d="M 210.00 210.00 L 209.56 32.00 A 178.00 178.00 0 0 0 208.38 32.01 Z" fill="#d6a84f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="AVGO
+Portfolio weight: 0.1%
+Gain/Loss: 1.1%" aria-label="AVGO: 0.1% weight, 1.1% gain/loss"></path><path d="M 210.00 210.00 L 210.00 32.00 A 178.00 178.00 0 0 0 209.56 32.00 Z" fill="#087443" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="ITOT
+Portfolio weight: 0.0%
+Gain/Loss: 167.5%" aria-label="ITOT: 0.0% weight, 167.5% gain/loss"></path>
+        <circle cx="210" cy="210" r="94" fill="#fff"></circle>
+        <text x="210" y="200" text-anchor="middle" fill="#667085" font-size="15">Weight</text>
+        <text x="210" y="230" text-anchor="middle" fill="#18212f" font-size="28" font-weight="760">100.0%</text>
+      </svg>
+    
+          <div class="legend"><div class="legend-item"><span class="swatch" style="background:#087443"></span><div><strong>GOOG</strong><br><small>9.7% portfolio weight</small></div><span class="gain">144.1%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#16a163"></span><div><strong>AMZN</strong><br><small>4.5% portfolio weight</small></div><span class="gain">33.4%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#d97059"></span><div><strong>BA</strong><br><small>4.5% portfolio weight</small></div><span class="loss">-3.3%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#67b26f"></span><div><strong>TSLA</strong><br><small>4.1% portfolio weight</small></div><span class="gain">18.8%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#16a163"></span><div><strong>BRK/B</strong><br><small>3.7% portfolio weight</small></div><span class="gain">31.8%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#67b26f"></span><div><strong>TCEHY</strong><br><small>3.6% portfolio weight</small></div><span class="gain">16.4%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#087443"></span><div><strong>TSM</strong><br><small>3.3% portfolio weight</small></div><span class="gain">112.3%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#087443"></span><div><strong>NVDA</strong><br><small>3.3% portfolio weight</small></div><span class="gain">314.6%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#d6a84f"></span><div><strong>UNH</strong><br><small>3.1% portfolio weight</small></div><span class="gain">5.1%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#087443"></span><div><strong>ASML</strong><br><small>2.3% portfolio weight</small></div><span class="gain">81.1%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#d97059"></span><div><strong>UPS</strong><br><small>2.3% portfolio weight</small></div><span class="loss">-3.5%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#087443"></span><div><strong>MRVL</strong><br><small>2.1% portfolio weight</small></div><span class="gain">121.4%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#b42318"></span><div><strong>LVMUY</strong><br><small>2.1% portfolio weight</small></div><span class="loss">-19.8%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#087443"></span><div><strong>COST</strong><br><small>2.0% portfolio weight</small></div><span class="gain">196.9%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#d97059"></span><div><strong>MSFT</strong><br><small>1.8% portfolio weight</small></div><span class="loss">-1.8%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#67b26f"></span><div><strong>AAPL</strong><br><small>1.8% portfolio weight</small></div><span class="gain">24.6%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#67b26f"></span><div><strong>AXP</strong><br><small>1.7% portfolio weight</small></div><span class="gain">14.3%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#087443"></span><div><strong>AMD</strong><br><small>1.7% portfolio weight</small></div><span class="gain">184.4%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#b42318"></span><div><strong>LULU</strong><br><small>1.7% portfolio weight</small></div><span class="loss">-37.1%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#16a163"></span><div><strong>H</strong><br><small>1.6% portfolio weight</small></div><span class="gain">27.6%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#d6a84f"></span><div><strong>HOOD</strong><br><small>1.6% portfolio weight</small></div><span class="gain">5.4%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#67b26f"></span><div><strong>CVX</strong><br><small>1.6% portfolio weight</small></div><span class="gain">9.5%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#16a163"></span><div><strong>JPM</strong><br><small>1.6% portfolio weight</small></div><span class="gain">48.4%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#b42318"></span><div><strong>CRM</strong><br><small>1.5% portfolio weight</small></div><span class="loss">-30.9%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#b42318"></span><div><strong>NKE</strong><br><small>1.5% portfolio weight</small></div><span class="loss">-28.0%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#67b26f"></span><div><strong>CRWD</strong><br><small>1.3% portfolio weight</small></div><span class="gain">14.3%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#087443"></span><div><strong>SPYM</strong><br><small>1.3% portfolio weight</small></div><span class="gain">99.1%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#d97059"></span><div><strong>AMT</strong><br><small>1.1% portfolio weight</small></div><span class="loss">-5.2%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#087443"></span><div><strong>INTC</strong><br><small>1.1% portfolio weight</small></div><span class="gain">245.8%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#d6a84f"></span><div><strong>PANW</strong><br><small>1.0% portfolio weight</small></div><span class="gain">0.9%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#b42318"></span><div><strong>ALK</strong><br><small>0.9% portfolio weight</small></div><span class="loss">-19.5%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#67b26f"></span><div><strong>ELV</strong><br><small>0.9% portfolio weight</small></div><span class="gain">13.1%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#d97059"></span><div><strong>DHI</strong><br><small>0.9% portfolio weight</small></div><span class="loss">-8.1%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#67b26f"></span><div><strong>MRK</strong><br><small>0.9% portfolio weight</small></div><span class="gain">20.4%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#b42318"></span><div><strong>PYPL</strong><br><small>0.9% portfolio weight</small></div><span class="loss">-29.3%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#b42318"></span><div><strong>NVO</strong><br><small>0.8% portfolio weight</small></div><span class="loss">-14.0%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#087443"></span><div><strong>MS</strong><br><small>0.8% portfolio weight</small></div><span class="gain">94.2%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#d6a84f"></span><div><strong>META</strong><br><small>0.8% portfolio weight</small></div><span class="gain">2.2%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#d97059"></span><div><strong>EL</strong><br><small>0.7% portfolio weight</small></div><span class="loss">-6.4%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#b42318"></span><div><strong>BX</strong><br><small>0.7% portfolio weight</small></div><span class="loss">-17.1%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#67b26f"></span><div><strong>HLT</strong><br><small>0.7% portfolio weight</small></div><span class="gain">21.9%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#b42318"></span><div><strong>LVMHF</strong><br><small>0.7% portfolio weight</small></div><span class="loss">-28.3%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#16a163"></span><div><strong>UAL</strong><br><small>0.7% portfolio weight</small></div><span class="gain">39.3%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#67b26f"></span><div><strong>COMP</strong><br><small>0.7% portfolio weight</small></div><span class="gain">20.2%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#67b26f"></span><div><strong>TRV</strong><br><small>0.7% portfolio weight</small></div><span class="gain">20.3%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#b42318"></span><div><strong>RACE</strong><br><small>0.7% portfolio weight</small></div><span class="loss">-15.5%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#b42318"></span><div><strong>FISV</strong><br><small>0.6% portfolio weight</small></div><span class="loss">-56.6%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#16a163"></span><div><strong>NET</strong><br><small>0.6% portfolio weight</small></div><span class="gain">26.7%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#16a163"></span><div><strong>BAC</strong><br><small>0.6% portfolio weight</small></div><span class="gain">46.5%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#b42318"></span><div><strong>BXP</strong><br><small>0.6% portfolio weight</small></div><span class="loss">-12.5%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#d97059"></span><div><strong>ISRG</strong><br><small>0.6% portfolio weight</small></div><span class="loss">-0.6%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#d6a84f"></span><div><strong>OXY</strong><br><small>0.5% portfolio weight</small></div><span class="gain">0.1%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#16a163"></span><div><strong>SPY</strong><br><small>0.5% portfolio weight</small></div><span class="gain">35.4%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#d97059"></span><div><strong>HD</strong><br><small>0.5% portfolio weight</small></div><span class="loss">-9.8%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#d6a84f"></span><div><strong>COF</strong><br><small>0.5% portfolio weight</small></div><span class="gain">2.3%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#67b26f"></span><div><strong>CRWV</strong><br><small>0.5% portfolio weight</small></div><span class="gain">13.3%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#b42318"></span><div><strong>RKT</strong><br><small>0.5% portfolio weight</small></div><span class="loss">-24.5%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#67b26f"></span><div><strong>D</strong><br><small>0.5% portfolio weight</small></div><span class="gain">10.9%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#16a163"></span><div><strong>DAL</strong><br><small>0.5% portfolio weight</small></div><span class="gain">52.7%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#b42318"></span><div><strong>CMCSA</strong><br><small>0.4% portfolio weight</small></div><span class="loss">-25.1%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#67b26f"></span><div><strong>QQQ</strong><br><small>0.4% portfolio weight</small></div><span class="gain">20.3%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#d6a84f"></span><div><strong>VST</strong><br><small>0.4% portfolio weight</small></div><span class="gain">0.8%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#b42318"></span><div><strong>RTX</strong><br><small>0.4% portfolio weight</small></div><span class="loss">-12.0%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#d6a84f"></span><div><strong>AAL</strong><br><small>0.4% portfolio weight</small></div><span class="gain">5.8%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#d97059"></span><div><strong>ADBE</strong><br><small>0.4% portfolio weight</small></div><span class="loss">-0.2%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#d97059"></span><div><strong>AKAM</strong><br><small>0.4% portfolio weight</small></div><span class="loss">-0.1%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#087443"></span><div><strong>SOFI</strong><br><small>0.4% portfolio weight</small></div><span class="gain">78.3%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#b42318"></span><div><strong>SNAP</strong><br><small>0.3% portfolio weight</small></div><span class="loss">-48.5%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#087443"></span><div><strong>IEFA</strong><br><small>0.3% portfolio weight</small></div><span class="gain">74.5%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#67b26f"></span><div><strong>NBIS</strong><br><small>0.3% portfolio weight</small></div><span class="gain">23.1%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#d6a84f"></span><div><strong>NOK</strong><br><small>0.3% portfolio weight</small></div><span class="gain">0.3%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#d97059"></span><div><strong>NFLX</strong><br><small>0.3% portfolio weight</small></div><span class="loss">-7.5%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#b42318"></span><div><strong>RBLX</strong><br><small>0.3% portfolio weight</small></div><span class="loss">-43.5%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#087443"></span><div><strong>IEMG</strong><br><small>0.2% portfolio weight</small></div><span class="gain">70.7%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#b42318"></span><div><strong>INTU</strong><br><small>0.2% portfolio weight</small></div><span class="loss">-35.3%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#b42318"></span><div><strong>REGN</strong><br><small>0.2% portfolio weight</small></div><span class="loss">-30.3%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#087443"></span><div><strong>IJR</strong><br><small>0.1% portfolio weight</small></div><span class="gain">92.8%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#087443"></span><div><strong>SPMD</strong><br><small>0.1% portfolio weight</small></div><span class="gain">103.3%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#d6a84f"></span><div><strong>LUV</strong><br><small>0.1% portfolio weight</small></div><span class="gain">4.3%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#67b26f"></span><div><strong>GLD</strong><br><small>0.1% portfolio weight</small></div><span class="gain">9.6%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#d6a84f"></span><div><strong>AVGO</strong><br><small>0.1% portfolio weight</small></div><span class="gain">1.1%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#087443"></span><div><strong>ITOT</strong><br><small>0.0% portfolio weight</small></div><span class="gain">167.5%</span></div></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Gain/Loss % Bands</h2>
+        <div class="chart-row">
+          
+      <svg class="donut" viewBox="0 0 420 420" role="img">
+        <path d="M 210.00 210.00 L 383.00 251.88 A 178.00 178.00 0 0 0 210.00 32.00 Z" fill="#087443" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="Gain 60%+
+Portfolio weight: 28.8%
+Gain/Loss: 142.9%" aria-label="Gain 60%+: 28.8% weight, 142.9% weighted gain/loss"></path><path d="M 210.00 210.00 L 284.89 371.48 A 178.00 178.00 0 0 0 383.00 251.88 Z" fill="#16a163" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="Gain 25% to 60%
+Portfolio weight: 14.3%
+Gain/Loss: 34.8%" aria-label="Gain 25% to 60%: 14.3% weight, 34.8% weighted gain/loss"></path><path d="M 210.00 210.00 L 81.39 333.06 A 178.00 178.00 0 0 0 284.89 371.48 Z" fill="#67b26f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="Gain 8% to 25%
+Portfolio weight: 19.8%
+Gain/Loss: 17.1%" aria-label="Gain 8% to 25%: 19.8% weight, 17.1% weighted gain/loss"></path><path d="M 210.00 210.00 L 35.96 247.32 A 178.00 178.00 0 0 0 81.39 333.06 Z" fill="#d6a84f" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="Gain 0% to 8%
+Portfolio weight: 8.8%
+Gain/Loss: 3.5%" aria-label="Gain 0% to 8%: 8.8% weight, 3.5% weighted gain/loss"></path><path d="M 210.00 210.00 L 66.64 104.50 A 178.00 178.00 0 0 0 35.96 247.32 Z" fill="#d97059" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="Loss 0% to 10%
+Portfolio weight: 13.5%
+Gain/Loss: -3.9%" aria-label="Loss 0% to 10%: 13.5% weight, -3.9% weighted gain/loss"></path><path d="M 210.00 210.00 L 210.00 32.00 A 178.00 178.00 0 0 0 66.64 104.50 Z" fill="#b42318" stroke="#fff" stroke-width="2" tabindex="0" data-tooltip="Loss 10%+
+Portfolio weight: 14.9%
+Gain/Loss: -28.7%" aria-label="Loss 10%+: 14.9% weight, -28.7% weighted gain/loss"></path>
+        <circle cx="210" cy="210" r="94" fill="#fff"></circle>
+        <text x="210" y="200" text-anchor="middle" fill="#667085" font-size="15">Weight</text>
+        <text x="210" y="230" text-anchor="middle" fill="#18212f" font-size="28" font-weight="760">100.0%</text>
+      </svg>
+    
+          <div class="legend"><div class="legend-item"><span class="swatch" style="background:#087443"></span><div><strong>Gain 60%+</strong><br><small>28.8% portfolio weight</small></div><span class="gain">142.9%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#16a163"></span><div><strong>Gain 25% to 60%</strong><br><small>14.3% portfolio weight</small></div><span class="gain">34.8%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#67b26f"></span><div><strong>Gain 8% to 25%</strong><br><small>19.8% portfolio weight</small></div><span class="gain">17.1%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#d6a84f"></span><div><strong>Gain 0% to 8%</strong><br><small>8.8% portfolio weight</small></div><span class="gain">3.5%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#d97059"></span><div><strong>Loss 0% to 10%</strong><br><small>13.5% portfolio weight</small></div><span class="loss">-3.9%</span></div>
+<div class="legend-item"><span class="swatch" style="background:#b42318"></span><div><strong>Loss 10%+</strong><br><small>14.9% portfolio weight</small></div><span class="loss">-28.7%</span></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tables">
+      <div class="panel">
+        <div class="toolbar">
+          <h2>Holdings Detail</h2>
+          <input id="filter" type="search" placeholder="Filter ticker or company">
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Symbol</th>
+                <th>Description</th>
+                <th class="num"><button class="sort-button" type="button" data-sort="weight" aria-sort="descending">Portfolio %</button></th>
+                <th class="num"><button class="sort-button" type="button" data-sort="gain" aria-sort="none">Gain/Loss %</button></th>
+              </tr>
+            </thead>
+            <tbody id="holdingsBody"><tr data-filter="goog alphabet inc class class c" data-weight="9.73999081" data-gain="144.10878133"><td><strong>GOOG</strong></td><td>ALPHABET INC CLASS CLASS C</td><td class="num"><div class="bar" title="9.7%"><span style="width:9.74%"></span></div>9.7%</td><td class="num gain">144.1%</td></tr>
+<tr data-filter="amzn amazon.com inc" data-weight="4.54516039" data-gain="33.44961875"><td><strong>AMZN</strong></td><td>AMAZON.COM INC</td><td class="num"><div class="bar" title="4.5%"><span style="width:4.55%"></span></div>4.5%</td><td class="num gain">33.4%</td></tr>
+<tr data-filter="ba boeing co" data-weight="4.53172869" data-gain="-3.33022347"><td><strong>BA</strong></td><td>BOEING CO</td><td class="num"><div class="bar" title="4.5%"><span style="width:4.53%"></span></div>4.5%</td><td class="num loss">-3.3%</td></tr>
+<tr data-filter="tsla tesla inc" data-weight="4.11332718" data-gain="18.81103416"><td><strong>TSLA</strong></td><td>TESLA INC</td><td class="num"><div class="bar" title="4.1%"><span style="width:4.11%"></span></div>4.1%</td><td class="num gain">18.8%</td></tr>
+<tr data-filter="brk/b berkshire hathaway class b" data-weight="3.71210402" data-gain="31.78705525"><td><strong>BRK/B</strong></td><td>BERKSHIRE HATHAWAY CLASS B</td><td class="num"><div class="bar" title="3.7%"><span style="width:3.71%"></span></div>3.7%</td><td class="num gain">31.8%</td></tr>
+<tr data-filter="tcehy tencent hldgs ltd funsponsored adr 1 adr reps 1 ord shs" data-weight="3.60153071" data-gain="16.35342992"><td><strong>TCEHY</strong></td><td>TENCENT HLDGS LTD FUNSPONSORED ADR 1 ADR REPS 1 ORD SHS</td><td class="num"><div class="bar" title="3.6%"><span style="width:3.60%"></span></div>3.6%</td><td class="num gain">16.4%</td></tr>
+<tr data-filter="tsm taiwan semiconductor m fsponsored adr 1 adr reps 5 ord shs" data-weight="3.30140315" data-gain="112.31409025"><td><strong>TSM</strong></td><td>TAIWAN SEMICONDUCTOR M FSPONSORED ADR 1 ADR REPS 5 ORD SHS</td><td class="num"><div class="bar" title="3.3%"><span style="width:3.30%"></span></div>3.3%</td><td class="num gain">112.3%</td></tr>
+<tr data-filter="nvda nvidia corp" data-weight="3.27391038" data-gain="314.56181419"><td><strong>NVDA</strong></td><td>NVIDIA CORP</td><td class="num"><div class="bar" title="3.3%"><span style="width:3.27%"></span></div>3.3%</td><td class="num gain">314.6%</td></tr>
+<tr data-filter="unh unitedhealth group inc" data-weight="3.06214028" data-gain="5.09071535"><td><strong>UNH</strong></td><td>UNITEDHEALTH GROUP INC</td><td class="num"><div class="bar" title="3.1%"><span style="width:3.06%"></span></div>3.1%</td><td class="num gain">5.1%</td></tr>
+<tr data-filter="asml asml hldg n v fsponsored adr 1 adr reps 1 ord shs" data-weight="2.32091899" data-gain="81.11126733"><td><strong>ASML</strong></td><td>ASML HLDG N V FSPONSORED ADR 1 ADR REPS 1 ORD SHS</td><td class="num"><div class="bar" title="2.3%"><span style="width:2.32%"></span></div>2.3%</td><td class="num gain">81.1%</td></tr>
+<tr data-filter="ups united parcel svc inc class class b" data-weight="2.26636538" data-gain="-3.48537896"><td><strong>UPS</strong></td><td>UNITED PARCEL SVC INC CLASS CLASS B</td><td class="num"><div class="bar" title="2.3%"><span style="width:2.27%"></span></div>2.3%</td><td class="num loss">-3.5%</td></tr>
+<tr data-filter="mrvl marvell technology inc" data-weight="2.10481481" data-gain="121.35127769"><td><strong>MRVL</strong></td><td>MARVELL TECHNOLOGY INC</td><td class="num"><div class="bar" title="2.1%"><span style="width:2.10%"></span></div>2.1%</td><td class="num gain">121.4%</td></tr>
+<tr data-filter="lvmuy lvmh moet hennessy lou fsponsored adr 1 adr reps 0.2 ord shs" data-weight="2.07102825" data-gain="-19.83920074"><td><strong>LVMUY</strong></td><td>LVMH MOET HENNESSY LOU FSPONSORED ADR 1 ADR REPS 0.2 ORD SHS</td><td class="num"><div class="bar" title="2.1%"><span style="width:2.07%"></span></div>2.1%</td><td class="num loss">-19.8%</td></tr>
+<tr data-filter="cost costco whsl corp new" data-weight="1.96899475" data-gain="196.90500648"><td><strong>COST</strong></td><td>COSTCO WHSL CORP NEW</td><td class="num"><div class="bar" title="2.0%"><span style="width:2.00%"></span></div>2.0%</td><td class="num gain">196.9%</td></tr>
+<tr data-filter="msft microsoft corp" data-weight="1.83682509" data-gain="-1.77235038"><td><strong>MSFT</strong></td><td>MICROSOFT CORP</td><td class="num"><div class="bar" title="1.8%"><span style="width:2.00%"></span></div>1.8%</td><td class="num loss">-1.8%</td></tr>
+<tr data-filter="aapl apple inc" data-weight="1.80886831" data-gain="24.60563586"><td><strong>AAPL</strong></td><td>APPLE INC</td><td class="num"><div class="bar" title="1.8%"><span style="width:2.00%"></span></div>1.8%</td><td class="num gain">24.6%</td></tr>
+<tr data-filter="axp american express co" data-weight="1.74811469" data-gain="14.29705667"><td><strong>AXP</strong></td><td>AMERICAN EXPRESS CO</td><td class="num"><div class="bar" title="1.7%"><span style="width:2.00%"></span></div>1.7%</td><td class="num gain">14.3%</td></tr>
+<tr data-filter="amd advanced micro devic" data-weight="1.74132480" data-gain="184.36226598"><td><strong>AMD</strong></td><td>ADVANCED MICRO DEVIC</td><td class="num"><div class="bar" title="1.7%"><span style="width:2.00%"></span></div>1.7%</td><td class="num gain">184.4%</td></tr>
+<tr data-filter="lulu lululemon athletica inc" data-weight="1.69504197" data-gain="-37.09572233"><td><strong>LULU</strong></td><td>LULULEMON ATHLETICA INC</td><td class="num"><div class="bar" title="1.7%"><span style="width:2.00%"></span></div>1.7%</td><td class="num loss">-37.1%</td></tr>
+<tr data-filter="h hyatt hotels corp class a" data-weight="1.63638628" data-gain="27.58489302"><td><strong>H</strong></td><td>HYATT HOTELS CORP CLASS A</td><td class="num"><div class="bar" title="1.6%"><span style="width:2.00%"></span></div>1.6%</td><td class="num gain">27.6%</td></tr>
+<tr data-filter="hood robinhood mkts inc class class a" data-weight="1.60926127" data-gain="5.35645323"><td><strong>HOOD</strong></td><td>ROBINHOOD MKTS INC CLASS CLASS A</td><td class="num"><div class="bar" title="1.6%"><span style="width:2.00%"></span></div>1.6%</td><td class="num gain">5.4%</td></tr>
+<tr data-filter="cvx chevron corp new" data-weight="1.55649706" data-gain="9.45013902"><td><strong>CVX</strong></td><td>CHEVRON CORP NEW</td><td class="num"><div class="bar" title="1.6%"><span style="width:2.00%"></span></div>1.6%</td><td class="num gain">9.5%</td></tr>
+<tr data-filter="jpm jpmorgan chase &amp; co" data-weight="1.55370311" data-gain="48.37144951"><td><strong>JPM</strong></td><td>JPMORGAN CHASE &amp; CO</td><td class="num"><div class="bar" title="1.6%"><span style="width:2.00%"></span></div>1.6%</td><td class="num gain">48.4%</td></tr>
+<tr data-filter="crm salesforce inc" data-weight="1.52256488" data-gain="-30.86399276"><td><strong>CRM</strong></td><td>SALESFORCE INC</td><td class="num"><div class="bar" title="1.5%"><span style="width:2.00%"></span></div>1.5%</td><td class="num loss">-30.9%</td></tr>
+<tr data-filter="nke nike inc class class b" data-weight="1.46308483" data-gain="-27.98228669"><td><strong>NKE</strong></td><td>NIKE INC CLASS CLASS B</td><td class="num"><div class="bar" title="1.5%"><span style="width:2.00%"></span></div>1.5%</td><td class="num loss">-28.0%</td></tr>
+<tr data-filter="crwd crowdstrike hldgs inc class class a" data-weight="1.26827094" data-gain="14.25401392"><td><strong>CRWD</strong></td><td>CROWDSTRIKE HLDGS INC CLASS CLASS A</td><td class="num"><div class="bar" title="1.3%"><span style="width:2.00%"></span></div>1.3%</td><td class="num gain">14.3%</td></tr>
+<tr data-filter="spym state street spdr portfolio s&amp;p 1500 composite stock market etf" data-weight="1.26040000" data-gain="99.13702674"><td><strong>SPYM</strong></td><td>State Street SPDR Portfolio S&amp;P 1500 Composite Stock Market ETF</td><td class="num"><div class="bar" title="1.3%"><span style="width:2.00%"></span></div>1.3%</td><td class="num gain">99.1%</td></tr>
+<tr data-filter="amt american tower corp new reit" data-weight="1.11005238" data-gain="-5.23758554"><td><strong>AMT</strong></td><td>AMERICAN TOWER CORP NEW REIT</td><td class="num"><div class="bar" title="1.1%"><span style="width:2.00%"></span></div>1.1%</td><td class="num loss">-5.2%</td></tr>
+<tr data-filter="intc intel corp" data-weight="1.09592467" data-gain="245.75270785"><td><strong>INTC</strong></td><td>INTEL CORP</td><td class="num"><div class="bar" title="1.1%"><span style="width:2.00%"></span></div>1.1%</td><td class="num gain">245.8%</td></tr>
+<tr data-filter="panw palo alto networks inc" data-weight="1.01545297" data-gain="0.85627646"><td><strong>PANW</strong></td><td>PALO ALTO NETWORKS INC</td><td class="num"><div class="bar" title="1.0%"><span style="width:2.00%"></span></div>1.0%</td><td class="num gain">0.9%</td></tr>
+<tr data-filter="alk alaska air group inc" data-weight="0.94680866" data-gain="-19.52884908"><td><strong>ALK</strong></td><td>ALASKA AIR GROUP INC</td><td class="num"><div class="bar" title="0.9%"><span style="width:2.00%"></span></div>0.9%</td><td class="num loss">-19.5%</td></tr>
+<tr data-filter="elv elevance health inc" data-weight="0.92469400" data-gain="13.09471701"><td><strong>ELV</strong></td><td>ELEVANCE HEALTH INC</td><td class="num"><div class="bar" title="0.9%"><span style="width:2.00%"></span></div>0.9%</td><td class="num gain">13.1%</td></tr>
+<tr data-filter="dhi d r horton inc" data-weight="0.91119813" data-gain="-8.13991679"><td><strong>DHI</strong></td><td>D R HORTON INC</td><td class="num"><div class="bar" title="0.9%"><span style="width:2.00%"></span></div>0.9%</td><td class="num loss">-8.1%</td></tr>
+<tr data-filter="mrk merck &amp; co. inc." data-weight="0.90480561" data-gain="20.36379158"><td><strong>MRK</strong></td><td>MERCK &amp; CO. INC.</td><td class="num"><div class="bar" title="0.9%"><span style="width:2.00%"></span></div>0.9%</td><td class="num gain">20.4%</td></tr>
+<tr data-filter="pypl paypal hldgs inc" data-weight="0.87897144" data-gain="-29.33523029"><td><strong>PYPL</strong></td><td>PAYPAL HLDGS INC</td><td class="num"><div class="bar" title="0.9%"><span style="width:2.00%"></span></div>0.9%</td><td class="num loss">-29.3%</td></tr>
+<tr data-filter="nvo novo-nordisk a s fsponsored adr 1 adr reps 1 ord shs" data-weight="0.79526399" data-gain="-13.95250710"><td><strong>NVO</strong></td><td>NOVO-NORDISK A S FSPONSORED ADR 1 ADR REPS 1 ORD SHS</td><td class="num"><div class="bar" title="0.8%"><span style="width:2.00%"></span></div>0.8%</td><td class="num loss">-14.0%</td></tr>
+<tr data-filter="ms morgan stanley" data-weight="0.76295585" data-gain="94.21477218"><td><strong>MS</strong></td><td>MORGAN STANLEY</td><td class="num"><div class="bar" title="0.8%"><span style="width:2.00%"></span></div>0.8%</td><td class="num gain">94.2%</td></tr>
+<tr data-filter="meta meta platforms inc class class a" data-weight="0.75499111" data-gain="2.19085640"><td><strong>META</strong></td><td>META PLATFORMS INC CLASS CLASS A</td><td class="num"><div class="bar" title="0.8%"><span style="width:2.00%"></span></div>0.8%</td><td class="num gain">2.2%</td></tr>
+<tr data-filter="el lauder estee cos inc class class a" data-weight="0.74680178" data-gain="-6.37657303"><td><strong>EL</strong></td><td>LAUDER ESTEE COS INC CLASS CLASS A</td><td class="num"><div class="bar" title="0.7%"><span style="width:2.00%"></span></div>0.7%</td><td class="num loss">-6.4%</td></tr>
+<tr data-filter="bx blackstone inc" data-weight="0.70885637" data-gain="-17.14120855"><td><strong>BX</strong></td><td>BLACKSTONE INC</td><td class="num"><div class="bar" title="0.7%"><span style="width:2.00%"></span></div>0.7%</td><td class="num loss">-17.1%</td></tr>
+<tr data-filter="hlt hilton worldwide hldgs i" data-weight="0.70854045" data-gain="21.93301761"><td><strong>HLT</strong></td><td>HILTON WORLDWIDE HLDGS I</td><td class="num"><div class="bar" title="0.7%"><span style="width:2.00%"></span></div>0.7%</td><td class="num gain">21.9%</td></tr>
+<tr data-filter="lvmhf lvmh moet hennessy ordf" data-weight="0.68970103" data-gain="-28.33015730"><td><strong>LVMHF</strong></td><td>LVMH MOET HENNESSY ORDF</td><td class="num"><div class="bar" title="0.7%"><span style="width:2.00%"></span></div>0.7%</td><td class="num loss">-28.3%</td></tr>
+<tr data-filter="ual united airlines" data-weight="0.68797332" data-gain="39.28086025"><td><strong>UAL</strong></td><td>United Airlines</td><td class="num"><div class="bar" title="0.7%"><span style="width:2.00%"></span></div>0.7%</td><td class="num gain">39.3%</td></tr>
+<tr data-filter="comp compass inc class class a" data-weight="0.68646034" data-gain="20.23993775"><td><strong>COMP</strong></td><td>COMPASS INC CLASS CLASS A</td><td class="num"><div class="bar" title="0.7%"><span style="width:2.00%"></span></div>0.7%</td><td class="num gain">20.2%</td></tr>
+<tr data-filter="trv travelers cos inc" data-weight="0.66441972" data-gain="20.32333905"><td><strong>TRV</strong></td><td>TRAVELERS COS INC</td><td class="num"><div class="bar" title="0.7%"><span style="width:2.00%"></span></div>0.7%</td><td class="num gain">20.3%</td></tr>
+<tr data-filter="race ferrari n v new f" data-weight="0.66343987" data-gain="-15.51367560"><td><strong>RACE</strong></td><td>FERRARI N V NEW F</td><td class="num"><div class="bar" title="0.7%"><span style="width:2.00%"></span></div>0.7%</td><td class="num loss">-15.5%</td></tr>
+<tr data-filter="fisv fiserv inc" data-weight="0.63806724" data-gain="-56.59357265"><td><strong>FISV</strong></td><td>FISERV INC</td><td class="num"><div class="bar" title="0.6%"><span style="width:2.00%"></span></div>0.6%</td><td class="num loss">-56.6%</td></tr>
+<tr data-filter="net cloudflare inc class class a" data-weight="0.61457041" data-gain="26.68983378"><td><strong>NET</strong></td><td>CLOUDFLARE INC CLASS CLASS A</td><td class="num"><div class="bar" title="0.6%"><span style="width:2.00%"></span></div>0.6%</td><td class="num gain">26.7%</td></tr>
+<tr data-filter="bac bank of america corp" data-weight="0.58176371" data-gain="46.50440058"><td><strong>BAC</strong></td><td>BANK OF AMERICA CORP</td><td class="num"><div class="bar" title="0.6%"><span style="width:2.00%"></span></div>0.6%</td><td class="num gain">46.5%</td></tr>
+<tr data-filter="bxp bxp inc reit" data-weight="0.57211816" data-gain="-12.48768296"><td><strong>BXP</strong></td><td>BXP INC REIT</td><td class="num"><div class="bar" title="0.6%"><span style="width:2.00%"></span></div>0.6%</td><td class="num loss">-12.5%</td></tr>
+<tr data-filter="isrg intuitive surgical inc" data-weight="0.55732404" data-gain="-0.60743180"><td><strong>ISRG</strong></td><td>INTUITIVE SURGICAL INC</td><td class="num"><div class="bar" title="0.6%"><span style="width:2.00%"></span></div>0.6%</td><td class="num loss">-0.6%</td></tr>
+<tr data-filter="oxy occidental pete corp" data-weight="0.54300381" data-gain="0.10374199"><td><strong>OXY</strong></td><td>OCCIDENTAL PETE CORP</td><td class="num"><div class="bar" title="0.5%"><span style="width:2.00%"></span></div>0.5%</td><td class="num gain">0.1%</td></tr>
+<tr data-filter="spy spdr s&amp;p 500 etf trust" data-weight="0.52618334" data-gain="35.41312025"><td><strong>SPY</strong></td><td>SPDR S&amp;P 500 ETF Trust</td><td class="num"><div class="bar" title="0.5%"><span style="width:2.00%"></span></div>0.5%</td><td class="num gain">35.4%</td></tr>
+<tr data-filter="hd home depot inc" data-weight="0.47843196" data-gain="-9.81366460"><td><strong>HD</strong></td><td>HOME DEPOT INC</td><td class="num"><div class="bar" title="0.5%"><span style="width:2.00%"></span></div>0.5%</td><td class="num loss">-9.8%</td></tr>
+<tr data-filter="cof capital one finl corp" data-weight="0.47724231" data-gain="2.29605333"><td><strong>COF</strong></td><td>CAPITAL ONE FINL CORP</td><td class="num"><div class="bar" title="0.5%"><span style="width:2.00%"></span></div>0.5%</td><td class="num gain">2.3%</td></tr>
+<tr data-filter="crwv coreweave inc class class a" data-weight="0.47270091" data-gain="13.30331947"><td><strong>CRWV</strong></td><td>COREWEAVE INC CLASS CLASS A</td><td class="num"><div class="bar" title="0.5%"><span style="width:2.00%"></span></div>0.5%</td><td class="num gain">13.3%</td></tr>
+<tr data-filter="rkt rocket companies cla a class a" data-weight="0.47228132" data-gain="-24.45239336"><td><strong>RKT</strong></td><td>ROCKET COMPANIES CLA A CLASS A</td><td class="num"><div class="bar" title="0.5%"><span style="width:2.00%"></span></div>0.5%</td><td class="num loss">-24.5%</td></tr>
+<tr data-filter="d dominion energy inc" data-weight="0.45766985" data-gain="10.90576330"><td><strong>D</strong></td><td>DOMINION ENERGY INC</td><td class="num"><div class="bar" title="0.5%"><span style="width:2.00%"></span></div>0.5%</td><td class="num gain">10.9%</td></tr>
+<tr data-filter="dal delta air lines inc del" data-weight="0.45105272" data-gain="52.72482638"><td><strong>DAL</strong></td><td>DELTA AIR LINES INC DEL</td><td class="num"><div class="bar" title="0.5%"><span style="width:2.00%"></span></div>0.5%</td><td class="num gain">52.7%</td></tr>
+<tr data-filter="cmcsa comcast corp new class a" data-weight="0.41096743" data-gain="-25.11647988"><td><strong>CMCSA</strong></td><td>COMCAST CORP NEW CLASS A</td><td class="num"><div class="bar" title="0.4%"><span style="width:2.00%"></span></div>0.4%</td><td class="num loss">-25.1%</td></tr>
+<tr data-filter="qqq invesco qqq" data-weight="0.39410994" data-gain="20.33188141"><td><strong>QQQ</strong></td><td>Invesco QQQ</td><td class="num"><div class="bar" title="0.4%"><span style="width:2.00%"></span></div>0.4%</td><td class="num gain">20.3%</td></tr>
+<tr data-filter="vst vistra corp" data-weight="0.39402602" data-gain="0.82991221"><td><strong>VST</strong></td><td>VISTRA CORP</td><td class="num"><div class="bar" title="0.4%"><span style="width:2.00%"></span></div>0.4%</td><td class="num gain">0.8%</td></tr>
+<tr data-filter="rtx rtx corp" data-weight="0.39317698" data-gain="-12.03171939"><td><strong>RTX</strong></td><td>RTX CORP</td><td class="num"><div class="bar" title="0.4%"><span style="width:2.00%"></span></div>0.4%</td><td class="num loss">-12.0%</td></tr>
+<tr data-filter="aal american airls group inc" data-weight="0.38118175" data-gain="5.78082192"><td><strong>AAL</strong></td><td>AMERICAN AIRLS GROUP INC</td><td class="num"><div class="bar" title="0.4%"><span style="width:2.00%"></span></div>0.4%</td><td class="num gain">5.8%</td></tr>
+<tr data-filter="adbe adobe inc" data-weight="0.37093397" data-gain="-0.17402856"><td><strong>ADBE</strong></td><td>ADOBE INC</td><td class="num"><div class="bar" title="0.4%"><span style="width:2.00%"></span></div>0.4%</td><td class="num loss">-0.2%</td></tr>
+<tr data-filter="akam akamai technologies inc" data-weight="0.36578046" data-gain="-0.09303078"><td><strong>AKAM</strong></td><td>AKAMAI TECHNOLOGIES INC</td><td class="num"><div class="bar" title="0.4%"><span style="width:2.00%"></span></div>0.4%</td><td class="num loss">-0.1%</td></tr>
+<tr data-filter="sofi sofi technologies inc" data-weight="0.36024439" data-gain="78.30075739"><td><strong>SOFI</strong></td><td>SOFI TECHNOLOGIES INC</td><td class="num"><div class="bar" title="0.4%"><span style="width:2.00%"></span></div>0.4%</td><td class="num gain">78.3%</td></tr>
+<tr data-filter="snap snap inc class class a" data-weight="0.34130378" data-gain="-48.47453964"><td><strong>SNAP</strong></td><td>SNAP INC CLASS CLASS A</td><td class="num"><div class="bar" title="0.3%"><span style="width:2.00%"></span></div>0.3%</td><td class="num loss">-48.5%</td></tr>
+<tr data-filter="iefa ishares core msci eafe etf" data-weight="0.33980561" data-gain="74.53411425"><td><strong>IEFA</strong></td><td>iShares Core MSCI EAFE ETF</td><td class="num"><div class="bar" title="0.3%"><span style="width:2.00%"></span></div>0.3%</td><td class="num gain">74.5%</td></tr>
+<tr data-filter="nbis nebius group n v a fclass a" data-weight="0.33424239" data-gain="23.06392105"><td><strong>NBIS</strong></td><td>NEBIUS GROUP N V A FCLASS A</td><td class="num"><div class="bar" title="0.3%"><span style="width:2.00%"></span></div>0.3%</td><td class="num gain">23.1%</td></tr>
+<tr data-filter="nok nokia corp fsponsored adr 1 adr reps 1 ord shs" data-weight="0.32406866" data-gain="0.30557678"><td><strong>NOK</strong></td><td>NOKIA CORP FSPONSORED ADR 1 ADR REPS 1 ORD SHS</td><td class="num"><div class="bar" title="0.3%"><span style="width:2.00%"></span></div>0.3%</td><td class="num gain">0.3%</td></tr>
+<tr data-filter="nflx netflix inc" data-weight="0.28296648" data-gain="-7.51290739"><td><strong>NFLX</strong></td><td>NETFLIX INC</td><td class="num"><div class="bar" title="0.3%"><span style="width:2.00%"></span></div>0.3%</td><td class="num loss">-7.5%</td></tr>
+<tr data-filter="rblx roblox corp class a" data-weight="0.27026289" data-gain="-43.53574523"><td><strong>RBLX</strong></td><td>ROBLOX CORP CLASS A</td><td class="num"><div class="bar" title="0.3%"><span style="width:2.00%"></span></div>0.3%</td><td class="num loss">-43.5%</td></tr>
+<tr data-filter="iemg ishares core msci emerging markets etf" data-weight="0.20275887" data-gain="70.66229018"><td><strong>IEMG</strong></td><td>iShares Core MSCI Emerging Markets ETF</td><td class="num"><div class="bar" title="0.2%"><span style="width:2.00%"></span></div>0.2%</td><td class="num gain">70.7%</td></tr>
+<tr data-filter="intu intuit" data-weight="0.19211126" data-gain="-35.33604719"><td><strong>INTU</strong></td><td>INTUIT</td><td class="num"><div class="bar" title="0.2%"><span style="width:2.00%"></span></div>0.2%</td><td class="num loss">-35.3%</td></tr>
+<tr data-filter="regn regeneron pharmaceutical" data-weight="0.17796626" data-gain="-30.31380773"><td><strong>REGN</strong></td><td>REGENERON PHARMACEUTICAL</td><td class="num"><div class="bar" title="0.2%"><span style="width:2.00%"></span></div>0.2%</td><td class="num loss">-30.3%</td></tr>
+<tr data-filter="ijr ishares s&amp;p smallcap 600 etf" data-weight="0.13696282" data-gain="92.80775512"><td><strong>IJR</strong></td><td>iShares S&amp;P SmallCap 600 ETF</td><td class="num"><div class="bar" title="0.1%"><span style="width:2.00%"></span></div>0.1%</td><td class="num gain">92.8%</td></tr>
+<tr data-filter="spmd state street spdr portfolio s&amp;p 400 mid cap etf" data-weight="0.12957316" data-gain="103.33088036"><td><strong>SPMD</strong></td><td>State Street SPDR Portfolio S&amp;P 400 Mid Cap ETF</td><td class="num"><div class="bar" title="0.1%"><span style="width:2.00%"></span></div>0.1%</td><td class="num gain">103.3%</td></tr>
+<tr data-filter="luv southwest airlines" data-weight="0.12113701" data-gain="4.32342813"><td><strong>LUV</strong></td><td>Southwest Airlines</td><td class="num"><div class="bar" title="0.1%"><span style="width:2.00%"></span></div>0.1%</td><td class="num gain">4.3%</td></tr>
+<tr data-filter="gld spdr gold trust" data-weight="0.11848868" data-gain="9.57250131"><td><strong>GLD</strong></td><td>SPDR Gold Trust</td><td class="num"><div class="bar" title="0.1%"><span style="width:2.00%"></span></div>0.1%</td><td class="num gain">9.6%</td></tr>
+<tr data-filter="avgo broadcom inc" data-weight="0.10468923" data-gain="1.06266381"><td><strong>AVGO</strong></td><td>BROADCOM INC</td><td class="num"><div class="bar" title="0.1%"><span style="width:2.00%"></span></div>0.1%</td><td class="num gain">1.1%</td></tr>
+<tr data-filter="itot ishares core s&amp;p total us stock market etf" data-weight="0.03975950" data-gain="167.54691912"><td><strong>ITOT</strong></td><td>iShares Core S&amp;P Total US Stock Market ETF</td><td class="num"><div class="bar" title="0.0%"><span style="width:2.00%"></span></div>0.0%</td><td class="num gain">167.5%</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+  <div id="sliceTooltip" class="tooltip"></div>
+  <script>
+    const filterInput = document.getElementById("filter");
+    const tableBody = document.getElementById("holdingsBody");
+    const rows = Array.from(document.querySelectorAll("#holdingsBody tr"));
+    const sortButtons = Array.from(document.querySelectorAll(".sort-button"));
+    let activeSort = { key: "weight", direction: "descending" };
+    filterInput.addEventListener("input", function () {
+      const query = filterInput.value.trim().toLowerCase();
+      rows.forEach(function (row) {
+        row.style.display = row.dataset.filter.includes(query) ? "" : "none";
+      });
+    });
+    function sortRows(key, direction) {
+      const multiplier = direction === "ascending" ? 1 : -1;
+      rows
+        .slice()
+        .sort(function (a, b) {
+          return (Number(a.dataset[key]) - Number(b.dataset[key])) * multiplier;
+        })
+        .forEach(function (row) {
+          tableBody.appendChild(row);
+        });
+      sortButtons.forEach(function (button) {
+        button.setAttribute("aria-sort", button.dataset.sort === key ? direction : "none");
+      });
+    }
+    sortButtons.forEach(function (button) {
+      button.addEventListener("click", function () {
+        const key = button.dataset.sort;
+        const direction = activeSort.key === key && activeSort.direction === "descending" ? "ascending" : "descending";
+        activeSort = { key, direction };
+        sortRows(key, direction);
+      });
+    });
+    const tooltip = document.getElementById("sliceTooltip");
+    const slices = Array.from(document.querySelectorAll(".donut path"));
+    function moveTooltip(event) {
+      const pad = 14;
+      const width = tooltip.offsetWidth || 180;
+      const height = tooltip.offsetHeight || 70;
+      const x = Math.min(event.clientX + pad, window.innerWidth - width - pad);
+      const y = Math.min(event.clientY + pad, window.innerHeight - height - pad);
+      tooltip.style.left = x + "px";
+      tooltip.style.top = y + "px";
+    }
+    function showTooltip(event) {
+      tooltip.textContent = event.currentTarget.dataset.tooltip;
+      tooltip.classList.add("is-visible");
+      moveTooltip(event);
+    }
+    function hideTooltip() {
+      tooltip.classList.remove("is-visible");
+    }
+    slices.forEach(function (slice) {
+      slice.addEventListener("mouseenter", showTooltip);
+      slice.addEventListener("mousemove", moveTooltip);
+      slice.addEventListener("mouseleave", hideTooltip);
+      slice.addEventListener("focus", function (event) {
+        tooltip.textContent = event.currentTarget.dataset.tooltip;
+        tooltip.classList.add("is-visible");
+        const box = event.currentTarget.getBoundingClientRect();
+        moveTooltip({ clientX: box.left + box.width / 2, clientY: box.top + box.height / 2 });
+      });
+      slice.addEventListener("blur", hideTooltip);
+    });
+  </script>
+</body>
+</html>
