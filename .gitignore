@@ -1,0 +1,12 @@
+# Local builders and source data are not needed for the public GitHub Pages site.
+build_stock_dashboard.py
+build_stock_percent_dashboard.py
+stock_supplemental_sources.py
+stock_holdings_dashboard.html
+stock_holdings_percent_dashboard.html
+outputs/
+scripts/
+stock_dashboard_versions/imported_html/
+stock_dashboard_versions/sources/
+stock_dashboard_versions/stock_holdings_dashboard_*.html
+pages_stock_dashboard_versions/
