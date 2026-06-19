@@ -79,6 +79,25 @@
     .gain { color: var(--good); }
     .loss { color: var(--bad); }
     .flat { color: var(--amber); }
+    .section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; margin-bottom: 12px; }
+    .section-head h2 { margin: 0; }
+    .section-note { color: var(--muted); font-size: 13px; text-align: right; }
+    .change-grid { display: grid; grid-template-columns: repeat(3, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .change-card { border: 1px solid #edf0f5; border-radius: 8px; padding: 14px; background: #fafbfe; }
+    .change-card span { display: block; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+    .change-card strong { display: block; margin-top: 8px; font-size: 24px; }
+    .change-card small { display: block; margin-top: 5px; color: var(--muted); }
+    .change-lists { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
+    .change-lists h3 { margin: 0 0 8px; font-size: 13px; color: #475467; text-transform: uppercase; letter-spacing: .06em; }
+    .change-line { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; padding: 8px 0; border-top: 1px solid #edf0f5; font-size: 13px; }
+    .change-line small { grid-column: 1 / -1; color: var(--muted); }
+    .positive { color: var(--good); }
+    .negative { color: var(--bad); }
+    .neutral { color: var(--muted); }
+    .chip-group { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; padding: 8px 0; border-top: 1px solid #edf0f5; }
+    .chip-group > span:first-child { color: var(--muted); font-size: 12px; min-width: 58px; }
+    .holding-chip { display: inline-flex; gap: 5px; align-items: center; border: 1px solid #d9dee7; border-radius: 999px; padding: 4px 8px; font-size: 12px; background: #fff; }
+    .change-empty { color: var(--muted); font-size: 13px; }
     .tables { display: grid; gap: 18px; margin-top: 18px; }
     .toolbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 12px; }
     input, select {
@@ -126,6 +145,9 @@
     }
     @media (max-width: 560px) {
       .kpis { grid-template-columns: 1fr; }
+      .section-head { display: grid; }
+      .section-note { text-align: left; }
+      .change-grid, .change-lists { grid-template-columns: 1fr; }
       th:nth-child(2), td:nth-child(2), th:nth-child(3), td:nth-child(3) { display: none; }
     }
   </style>
@@ -138,8 +160,8 @@
         <div class="sub">Percent-only view: allocation is portfolio weight, performance is Gain/Loss %. Includes Schwab, Robinhood Investing, and Robinhood Roth IRA, with sector/theme exposure grouped separately from ticker weights.</div>
       </div>
       <div class="header-tools">
-        <label class="version-control" for="versionSelect"><span>Version</span><select id="versionSelect" aria-label="Dashboard version"><option value="stock_holdings_percent_dashboard_2026-05-29_174729.html" selected>May 29, 2026 (5:47 PM ET)</option><option value="stock_holdings_percent_dashboard_2026-05-06_201600.html">May 6, 2026 (8:16 PM ET)</option></select></label>
-        <div class="stamp">Source as of 05:47 PM ET, 05/29/2026<br>Dashboard generated 2026-06-02 16:35</div>
+        <label class="version-control" for="versionSelect"><span>Version</span><select id="versionSelect" aria-label="Dashboard version"><option value="../index.html">Latest: Jun 19, 2026 (1:24 AM ET)</option><option value="stock_holdings_percent_dashboard_2026-06-05_171427.html">Jun 5, 2026 (5:14 PM ET)</option><option value="stock_holdings_percent_dashboard_2026-05-29_174729.html" selected>May 29, 2026 (5:47 PM ET)</option><option value="stock_holdings_percent_dashboard_2026-05-06_201600.html">May 6, 2026 (8:16 PM ET)</option></select></label>
+        <div class="stamp">Source as of 05:47 PM ET, 05/29/2026<br>Dashboard generated 2026-06-18 22:49</div>
       </div>
     </header>
 
@@ -150,6 +172,8 @@
       <div class="kpi"><div class="label">Top Gain %</div><div class="value gain">284.9%</div><div class="note">NVDA</div></div>
       <div class="kpi"><div class="label">Lowest Gain %</div><div class="value loss">-65.2%</div><div class="note">TTD</div></div>
     </section>
+
+    
 
     <section class="grid">
       <div class="panel">
