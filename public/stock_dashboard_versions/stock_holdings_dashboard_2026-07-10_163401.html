@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Combined Stock Holdings Dashboard</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #18212f;
+      --muted: #667085;
+      --line: #d9dee7;
+      --paper: #ffffff;
+      --bg: #f7f7f5;
+      --good: #15803d;
+      --bad: #b42318;
+      --amber: #b7791f;
+      --blue: #2264a8;
+      --accent: #111111;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 17px;
+      background: var(--bg);
+      color: var(--ink);
+    }
+    .shell { max-width: 1360px; margin: 0 auto; padding: 32px 28px 48px; }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 24px;
+      margin-bottom: 22px;
+    }
+    h1 { margin: 0; font-size: clamp(31px, 4vw, 49px); line-height: 1; letter-spacing: 0; font-weight: 650; }
+    .sub { margin-top: 10px; color: var(--muted); font-size: 15px; }
+    .header-tools { display: flex; justify-content: flex-end; align-items: flex-end; flex-wrap: wrap; gap: 14px; }
+    .brand { display: flex; align-items: flex-start; gap: 16px; min-width: 0; }
+    .brand-logo { width: 92px; height: 92px; flex: 0 0 auto; object-fit: contain; border-radius: 8px; }
+    .stamp { color: var(--muted); font-size: 14px; text-align: right; min-width: 220px; }
+    .version-control { display: grid; gap: 6px; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; min-width: 230px; text-align: left; }
+    .version-control select { width: 100%; }
+    .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 12px; margin-bottom: 18px; }
+    .panel, .kpi {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(16, 24, 40, .035);
+    }
+    .kpi { padding: 16px; min-height: 100px; }
+    .kpi .label { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .08em; }
+    .kpi .value { margin-top: 10px; font-size: 27px; font-weight: 750; white-space: nowrap; }
+    .kpi .note { margin-top: 6px; color: var(--muted); font-size: 14px; }
+    .tabs { position: sticky; top: 0; z-index: 10; display: flex; gap: 4px; overflow-x: auto; margin: 0 0 20px; padding: 5px; border: 1px solid var(--line); border-radius: 8px; background: rgba(247, 247, 245, .94); backdrop-filter: blur(12px); }
+    .tab { flex: 0 0 auto; border: 0; border-radius: 5px; padding: 9px 14px; color: var(--muted); background: transparent; cursor: pointer; font: inherit; font-size: 14px; font-weight: 600; white-space: nowrap; }
+    .tab:hover { color: var(--ink); background: #ecece8; }
+    .tab[aria-selected="true"] { color: #fff; background: var(--accent); }
+    .tab-panel[hidden] { display: none; }
+    .grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(360px, .75fr); gap: 18px; align-items: start; }
+    .panel { padding: 18px; }
+    .panel h2 { margin: 0 0 14px; font-size: 19px; }
+    .chart-row { display: grid; grid-template-columns: minmax(320px, 520px) minmax(260px, 1fr); gap: 18px; align-items: center; }
+    .donut { width: 100%; max-width: 520px; aspect-ratio: 1; display: block; }
+    .legend { display: grid; gap: 8px; max-height: 500px; overflow: auto; padding-right: 4px; }
+    .legend-item { display: grid; grid-template-columns: 14px 1fr auto; gap: 8px; align-items: center; font-size: 14px; }
+    .swatch { width: 12px; height: 12px; border-radius: 2px; }
+    .legend small { color: var(--muted); }
+    .gain { color: var(--good); }
+    .loss { color: var(--bad); }
+    .flat { color: var(--amber); }
+    .section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; margin-bottom: 12px; }
+    .section-head h2 { margin: 0; }
+    .section-note { color: var(--muted); font-size: 14px; text-align: right; }
+    .sector-list { display: grid; gap: 0; }
+    .sector-row {
+      display: grid;
+      grid-template-columns: minmax(180px, 1.35fr) minmax(150px, 2fr) minmax(86px, .65fr) minmax(72px, .5fr) minmax(72px, .5fr);
+      gap: 12px;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #edf0f5;
+      font-size: 14px;
+    }
+    .sector-row:last-child { border-bottom: 0; }
+    .sector-main strong { display: block; font-size: 15px; }
+    .sector-main small { display: block; margin-top: 3px; color: var(--muted); }
+    .sector-bar .bar { margin-bottom: 0; }
+    .change-grid { display: grid; grid-template-columns: repeat(3, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .change-card { border: 1px solid #edf0f5; border-radius: 8px; padding: 14px; background: #fafbfe; }
+    .change-card span { display: block; color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .08em; }
+    .change-card strong { display: block; margin-top: 8px; font-size: 25px; }
+    .change-card small { display: block; margin-top: 5px; color: var(--muted); }
+    .health-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+    .health-card { border: 1px solid #edf0f5; border-radius: 8px; padding: 14px; background: #fff; min-height: 110px; }
+    .health-card span { display: block; color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .08em; }
+    .health-card strong { display: block; margin-top: 8px; font-size: 25px; }
+    .health-card small { display: block; margin-top: 5px; color: var(--muted); line-height: 1.35; }
+    .change-lists { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
+    .change-lists h3 { margin: 0 0 8px; font-size: 14px; color: #475467; text-transform: uppercase; letter-spacing: .06em; }
+    .change-line { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; padding: 8px 0; border-top: 1px solid #edf0f5; font-size: 14px; }
+    .change-holding { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .change-metrics { display: grid; justify-items: end; gap: 3px; text-align: right; }
+    .change-metrics small { color: var(--muted); white-space: nowrap; }
+    .positive { color: var(--good); }
+    .negative { color: var(--bad); }
+    .neutral { color: var(--muted); }
+    .chip-group { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; padding: 8px 0; border-top: 1px solid #edf0f5; }
+    .chip-group > span:first-child { color: var(--muted); font-size: 13px; min-width: 58px; }
+    .holding-chip { display: inline-flex; gap: 5px; align-items: center; border: 1px solid #d9dee7; border-radius: 999px; padding: 4px 8px; font-size: 13px; background: #fff; }
+    .change-empty { color: var(--muted); font-size: 14px; }
+    .tables { display: grid; grid-template-columns: 1fr; gap: 18px; margin-top: 18px; }
+    .toolbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 12px; }
+    input, select {
+      width: min(340px, 100%);
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      padding: 10px 12px;
+      font-size: 15px;
+      color: var(--ink);
+      background: #fff;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 10px 9px; border-bottom: 1px solid #edf0f5; vertical-align: middle; }
+    th { text-align: left; color: #475467; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; background: #fafbfe; position: sticky; top: 0; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .table-wrap { max-height: 640px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+    .bar { height: 7px; background: #e8edf4; border-radius: 99px; overflow: hidden; min-width: 72px; }
+    .bar span { display: block; height: 100%; background: var(--blue); border-radius: 99px; }
+    .symbol-cell { white-space: nowrap; }
+    .holding-logo { display: inline-grid; place-items: center; width: 28px; height: 28px; margin-right: 8px; vertical-align: middle; border: 1px solid var(--line); border-radius: 6px; background: #fff; overflow: hidden; }
+    .holding-logo img { width: 22px; height: 22px; object-fit: contain; }
+    .holding-logo.change-logo { width: 20px; height: 20px; margin-right: 0; border-radius: 4px; }
+    .holding-logo.change-logo img { width: 16px; height: 16px; }
+    .summary-symbol { display: inline-flex; align-items: center; gap: 4px; margin-right: 6px; white-space: nowrap; }
+    .summary-symbol-label { display: inline; white-space: nowrap; }
+    .summary-symbol-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+    .summary-symbol-list .summary-symbol { margin-right: 0; }
+    .health-card small .summary-symbol { display: inline-flex; flex-wrap: nowrap; align-items: center; vertical-align: middle; white-space: nowrap; }
+    .health-card small .summary-symbol .holding-logo { flex: 0 0 20px; }
+    .logo-fallback { color: var(--muted); font-size: 11px; font-weight: 750; }
+    .accounts { display: grid; gap: 10px; }
+    .account-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; font-size: 14px; }
+    .account-row strong { font-size: 14px; }
+    @media (max-width: 980px) {
+      .shell { padding: 18px; }
+      header { align-items: flex-start; flex-direction: column; }
+      .header-tools { justify-content: flex-start; }
+      .stamp { text-align: left; }
+      .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid, .chart-row { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 560px) {
+      .kpis { grid-template-columns: 1fr; }
+      .section-head { display: grid; }
+      .section-note { text-align: left; }
+      .sector-row { grid-template-columns: 1fr; gap: 6px; }
+      .sector-row .num { text-align: left; }
+      .change-grid, .change-lists { grid-template-columns: 1fr; }
+      th:nth-child(2), td:nth-child(2), th:nth-child(4), td:nth-child(4), th:nth-child(7), td:nth-child(7), th:nth-child(13), td:nth-child(13) { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div class="brand">
+        <img class="brand-logo" src="../portfolio-logo.png" alt="Portfolio to the Moon logo">
+        <div>
+        <h1>Combined Stock Holdings</h1>
+        <div class="sub">Schwab, Robinhood Investing, and Robinhood Roth IRA positions combined by symbol. Slice size is market value; color reflects Gain/Loss %. Sector/theme exposure groups broad ETFs separately from individual stocks.</div>
+        </div>
+      </div>
+      <div class="header-tools">
+        <label class="version-control" for="versionSelect"><span>Version</span><select id="versionSelect" aria-label="Dashboard version"><option value="../stock_holdings_dashboard.html" selected>Latest: Jul 10, 2026 (4:34 PM ET)</option><option value="stock_holdings_dashboard_2026-07-03_135840.html">Jul 3, 2026 (1:58 PM ET)</option><option value="stock_holdings_dashboard_2026-06-26_173049.html">Jun 26, 2026 (5:30 PM ET)</option><option value="stock_holdings_dashboard_2026-06-19_012451.html">Jun 19, 2026 (1:24 AM ET)</option><option value="stock_holdings_dashboard_2026-06-05_171427.html">Jun 5, 2026 (5:14 PM ET)</option><option value="stock_holdings_dashboard_2026-05-29_174729.html">May 29, 2026 (5:47 PM ET)</option></select></label>
+        <div class="stamp">Source as of 04:34 PM ET, 07/10/2026<br>Dashboard generated 2026-07-11 00:14</div>
+      </div>
+    </header>
+
+    <nav class="tabs" aria-label="Dashboard sections" role="tablist">
+      <button class="tab" type="button" role="tab" aria-selected="true" aria-controls="summary" data-tab-target="summary">Summary</button>
+      <button class="tab" type="button" role="tab" aria-selected="false" aria-controls="exposure" data-tab-target="exposure">Exposure</button>
+      <button class="tab" type="button" role="tab" aria-selected="false" aria-controls="holdings" data-tab-target="holdings">Holdings</button>
+      <button class="tab" type="button" role="tab" aria-selected="false" aria-controls="accounts" data-tab-target="accounts">Accounts</button>
+    </nav>
+
+    <div class="tab-panel" id="summary" role="tabpanel">
+    <section class="kpis" id="kpis"></section>
+      
+    <section class="tables">
+      <div class="panel">
+        <div class="section-head">
+          <h2>Since Last Version</h2>
+          <span class="section-note">Compared with Jul 3, 2026 (1:58 PM ET)</span>
+        </div>
+        <div class="change-grid">
+          <div class="change-card">
+            <span>Market Value</span>
+            <strong class="negative">-$404</strong>
+            <small>-0.1% vs last version</small>
+          </div>
+          <div class="change-card">
+            <span>Unrealized Gain</span>
+            <strong class="negative">-$630</strong>
+            <small>-0.1% gain/loss rate</small>
+          </div>
+          <div class="change-card">
+            <span>Holding Count</span>
+            <strong class="neutral">0</strong>
+            <small>Grouped symbols included</small>
+          </div>
+        </div>
+        <div class="change-lists">
+          <div>
+            <h3>Largest Position Changes</h3>
+            <div class="change-line"><div class="change-holding"><span class="holding-logo change-logo"><img src="../holding-logos/NVDA.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>NV</span></span><strong>NVDA</strong></div><div class="change-metrics"><span class="positive">+$1,085</span><small>+0.2% weight</small></div></div><div class="change-line"><div class="change-holding"><span class="holding-logo change-logo"><img src="../holding-logos/TCEHY.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>TC</span></span><strong>TCEHY</strong></div><div class="change-metrics"><span class="positive">+$902</span><small>+0.2% weight</small></div></div><div class="change-line"><div class="change-holding"><span class="holding-logo change-logo"><img src="../holding-logos/MRVL.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>MR</span></span><strong>MRVL</strong></div><div class="change-metrics"><span class="negative">-$679</span><small>-0.1% weight</small></div></div><div class="change-line"><div class="change-holding"><span class="holding-logo change-logo"><img src="../holding-logos/BA.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>BA</span></span><strong>BA</strong></div><div class="change-metrics"><span class="negative">-$554</span><small>-0.1% weight</small></div></div><div class="change-line"><div class="change-holding"><span class="holding-logo change-logo"><img src="../holding-logos/AMD.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>AM</span></span><strong>AMD</strong></div><div class="change-metrics"><span class="negative">-$510</span><small>-0.1% weight</small></div></div><div class="change-line"><div class="change-holding"><span class="holding-logo change-logo"><img src="../holding-logos/BRK-B.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>BR</span></span><strong>BRK/B</strong></div><div class="change-metrics"><span class="negative">-$472</span><small>-0.1% weight</small></div></div>
+          </div>
+          <div>
+            <h3>Sector Weight Changes</h3>
+            <div class="change-line"><strong>Real Estate / Housing</strong><span class="negative">-0.7%</span><small>2.2% current weight</small></div><div class="change-line"><strong>Other / Unclassified</strong><span class="positive">+0.4%</span><small>0.4% current weight</small></div><div class="change-line"><strong>Communications &amp; Media</strong><span class="positive">+0.2%</span><small>12.8% current weight</small></div><div class="change-line"><strong>Technology &amp; Semiconductors</strong><span class="positive">+0.2%</span><small>20.8% current weight</small></div><div class="change-line"><strong>Financials</strong><span class="negative">-0.1%</span><small>13.2% current weight</small></div>
+          </div>
+          <div>
+            <h3>Position Activity</h3>
+            <div class="chip-group"><span>New</span><span class="holding-chip"><span class="holding-logo change-logo"><img src="../holding-logos/MU.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>MU</span></span><strong>MU</strong> +$979</span><span class="holding-chip"><span class="holding-logo change-logo"><img src="../holding-logos/SKHYV.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>SK</span></span><strong>SKHYV</strong> +$848</span></div>
+            <div class="chip-group"><span>Added</span><span class="holding-chip"><span class="holding-logo change-logo"><img src="../holding-logos/MSFT.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>MS</span></span><strong>MSFT</strong> +$386</span><span class="holding-chip"><span class="holding-logo change-logo"><img src="../holding-logos/H.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>H</span></span><strong>H</strong> +$382</span><span class="holding-chip"><span class="holding-logo change-logo"><img src="../holding-logos/AXP.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>AX</span></span><strong>AXP</strong> +$350</span><span class="holding-chip"><span class="holding-logo change-logo"><img src="../holding-logos/INTC.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>IN</span></span><strong>INTC</strong> +$329</span><span class="holding-chip"><span class="holding-logo change-logo"><img src="../holding-logos/AAPL.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>AA</span></span><strong>AAPL</strong> +$312</span><span class="holding-chip"><span class="holding-logo change-logo"><img src="../holding-logos/NBIS.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>NB</span></span><strong>NBIS</strong> +$219</span><span class="holding-chip"><span class="holding-logo change-logo"><img src="../holding-logos/COF.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>CO</span></span><strong>COF</strong> +$202</span><span class="holding-chip"><span class="holding-logo change-logo"><img src="../holding-logos/TMUS.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>TM</span></span><strong>TMUS</strong> +$187</span><span class="holding-chip"><span class="holding-logo change-logo"><img src="../holding-logos/CRWD.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>CR</span></span><strong>CRWD</strong> +$187</span><span class="holding-chip"><span class="holding-logo change-logo"><img src="../holding-logos/NKE.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>NK</span></span><strong>NKE</strong> +$89</span><span class="holding-chip"><span class="holding-logo change-logo"><img src="../holding-logos/UBER.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>UB</span></span><strong>UBER</strong> +$75</span></div>
+            <div class="chip-group"><span>Removed</span><span class="holding-chip"><span class="holding-logo change-logo"><img src="../holding-logos/BXP.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>BX</span></span><strong>BXP</strong> +$2,634</span><span class="holding-chip"><span class="holding-logo change-logo"><img src="../holding-logos/CRCL.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>CR</span></span><strong>CRCL</strong> +$646</span></div>
+            <div class="chip-group"><span>Reduced</span><span class="holding-chip"><span class="holding-logo change-logo"><img src="../holding-logos/AMD.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>AM</span></span><strong>AMD</strong> -$1,117</span><span class="holding-chip"><span class="holding-logo change-logo"><img src="../holding-logos/TSLA.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>TS</span></span><strong>TSLA</strong> -$406</span><span class="holding-chip"><span class="holding-logo change-logo"><img src="../holding-logos/MRVL.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>MR</span></span><strong>MRVL</strong> -$237</span><span class="holding-chip"><span class="holding-logo change-logo"><img src="../holding-logos/BA.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>BA</span></span><strong>BA</strong> -$222</span><span class="holding-chip"><span class="holding-logo change-logo"><img src="../holding-logos/SOFI.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>SO</span></span><strong>SOFI</strong> -$188</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+      
+    <section class="tables">
+      <div class="panel">
+        <div class="section-head">
+          <h2>Portfolio Health &amp; Risk</h2>
+          <span class="section-note">Current weights with last-update activity</span>
+        </div>
+        <div class="health-grid">
+          <div class="health-card"><span>Concentration</span><strong class="positive">23.5%</strong><small>Top 5: <span class="summary-symbol"><span class="holding-logo change-logo"><img src="../holding-logos/GOOG.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>GO</span></span><span class="summary-symbol-label">GOOG/GOOGL</span></span> <span class="summary-symbol"><span class="holding-logo change-logo"><img src="../holding-logos/TSLA.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>TS</span></span><span class="summary-symbol-label">TSLA</span></span> <span class="summary-symbol"><span class="holding-logo change-logo"><img src="../holding-logos/BA.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>BA</span></span><span class="summary-symbol-label">BA</span></span> <span class="summary-symbol"><span class="holding-logo change-logo"><img src="../holding-logos/TSM.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>TS</span></span><span class="summary-symbol-label">TSM</span></span> <span class="summary-symbol"><span class="holding-logo change-logo"><img src="../holding-logos/BRK-B.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>BR</span></span><span class="summary-symbol-label">BRK/B</span></span></small></div><div class="health-card"><span>Sector Risk</span><strong class="positive">20.8%</strong><small>Technology &amp; Semiconductors</small></div><div class="health-card"><span>Portfolio Beta</span><strong class="neutral">1.34</strong><small>93.4% beta coverage</small></div><div class="health-card"><span>Deep Loss Exposure</span><strong class="neutral">10.1%</strong><small>17 holdings at -20% or worse</small></div><div class="health-card"><span>Private/Illiquid Exposure</span><strong class="positive">0.5%</strong><small><span class="summary-symbol"><span class="holding-logo change-logo"><img src="../holding-logos/SPCX.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>SP</span></span><span class="summary-symbol-label">SPCX</span></span> <span class="summary-symbol"><span class="holding-logo change-logo"><img src="../holding-logos/RVI.png" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>RV</span></span><span class="summary-symbol-label">RVI</span></span></small></div><div class="health-card"><span>Weekly Turnover</span><strong class="positive">2.2%</strong><small>New, removed, added, reduced stakes</small></div>
+        </div>
+      </div>
+    </section>
+
+    </div>
+
+    <div class="tab-panel" id="exposure" role="tabpanel" hidden>
+    <section class="grid">
+      <div class="panel">
+        <h2>Market Value Allocation</h2>
+        <div class="chart-row">
+          <svg id="allocationChart" class="donut" viewBox="0 0 420 420" role="img" aria-label="Market value allocation pie chart"></svg>
+          <div id="allocationLegend" class="legend"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Unrealized Gain Contribution</h2>
+        <div class="chart-row" style="grid-template-columns: 1fr;">
+          <svg id="gainChart" class="donut" viewBox="0 0 420 420" role="img" aria-label="Unrealized gain contribution pie chart"></svg>
+          <div id="gainLegend" class="legend"></div>
+        </div>
+      </div>
+    </section>
+    <section class="tables">
+      <div class="panel">
+        <div class="section-head">
+          <h2>Sector / Theme Exposure</h2>
+          <span id="sectorNote" class="section-note"></span>
+        </div>
+        <div id="sectors" class="sector-list"></div>
+      </div>
+    </section>
+    </div>
+
+    <div class="tab-panel" id="holdings" role="tabpanel" hidden>
+
+    <section class="tables">
+      <div class="panel">
+        <div class="toolbar">
+          <h2>Holdings Detail</h2>
+          <input id="filter" type="search" placeholder="Filter ticker or company">
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Symbol</th>
+                <th>Description</th>
+                <th>Sector</th>
+                <th class="num">Qty</th>
+                <th class="num">Mkt Val</th>
+                <th class="num">Weight</th>
+                <th class="num">Cost Basis</th>
+                <th class="num">Gain $</th>
+                <th class="num">Gain %</th>
+                <th class="num">PE</th>
+                <th class="num">Forward PE</th>
+                <th class="num">Beta</th>
+                <th>Accounts</th>
+              </tr>
+            </thead>
+            <tbody id="holdingsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    </div>
+
+    <div class="tab-panel" id="accounts" role="tabpanel" hidden>
+      <section class="tables">
+        <div class="panel">
+          <h2>Market Value by Account</h2>
+          <div id="accountsList" class="accounts"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+  <script>
+    const data = {"asOf": "04:34 PM ET, 07/10/2026", "generated": "2026-07-11 00:14", "summary": {"totalValue": 450161.29999999993, "totalCost": 358154.4100000001, "totalGain": 91159.39, "gainPct": 25.452538752768668, "holdingCount": 89, "accountCount": 7}, "holdings": [{"symbol": "GOOG/GOOGL", "description": "Alphabet Class A/C", "qty": 104.0, "marketValue": 36928.14, "costBasis": 17239.76, "gainDollar": 19688.38, "accounts": ["Kevin_Roth_IRA ...738", "Ning_IRA ...631", "Robinhood Roth IRA"], "gainPct": 114.20332997675142, "weight": 8.203312901397789, "sector": "Communications & Media", "pe": 27.45, "forwardPe": 24.47, "beta": 1.24, "logo": "../holding-logos/GOOG.png"}, {"symbol": "TSLA", "description": "TESLA INC", "qty": 45.0, "marketValue": 18253.4, "costBasis": 15175.619999999999, "gainDollar": 3077.7799999999997, "accounts": ["Aijun_IRA ...819", "Kevin_Individual ...360", "Robinhood Investing", "Robinhood Roth IRA"], "gainPct": 20.281082420355805, "weight": 4.054857669906322, "sector": "Consumer Discretionary", "pe": 359.45, "forwardPe": 161.85, "beta": 1.8, "logo": "../holding-logos/TSLA.png"}, {"symbol": "BA", "description": "BOEING CO", "qty": 80.0, "marketValue": 17792.0, "costBasis": 18993.32, "gainDollar": -1201.32, "accounts": ["Kevin_Individual ...360"], "gainPct": -6.324960565082883, "weight": 3.952361075907681, "sector": "Industrials & Aerospace", "pe": 116.45, "forwardPe": 54.99, "beta": 1.21, "logo": "../holding-logos/BA.png"}, {"symbol": "TSM", "description": "TAIWAN SEMICONDUCTOR M FSPONSORED ADR 1 ADR REPS 5 ORD SHS", "qty": 37.626, "marketValue": 16377.77, "costBasis": 8475.79, "gainDollar": 7901.98, "accounts": ["Aijun_IRA ...819", "Robinhood Roth IRA"], "gainPct": 93.23001159773897, "weight": 3.6382003517405876, "sector": "Technology & Semiconductors", "pe": 36.08, "forwardPe": 21.43, "beta": 1.38, "logo": "../holding-logos/TSM.png"}, {"symbol": "BRK/B", "description": "BERKSHIRE HATHAWAY CLASS B", "qty": 33.0, "marketValue": 16283.15, "costBasis": 11891.09, "gainDollar": 4392.06, "accounts": ["Ning_IRA ...631", "Robinhood Roth IRA"], "gainPct": 36.93572246110323, "weight": 3.6171812192651838, "sector": "Financials", "pe": 15.12, "forwardPe": 23.65, "beta": 0.62, "logo": "../holding-logos/BRK-B.png"}, {"symbol": "AMZN", "description": "AMAZON.COM INC", "qty": 66.0, "marketValue": 16197.89, "costBasis": 13560.05, "gainDollar": 2637.84, "accounts": ["Aijun_IRA ...819", "Kevin_Individual ...360", "Ning_IRA ...631", "Robinhood Investing"], "gainPct": 19.45302561568726, "weight": 3.5982413414924834, "sector": "Consumer Discretionary", "pe": 29.0, "forwardPe": 24.05, "beta": 1.47, "logo": "../holding-logos/AMZN.png"}, {"symbol": "NVDA", "description": "NVIDIA CORP", "qty": 68.0, "marketValue": 14333.04, "costBasis": 4045.98, "gainDollar": 10287.06, "accounts": ["Ning_Individual ...240"], "gainPct": 254.25385197158658, "weight": 3.1839787205164027, "sector": "Technology & Semiconductors", "pe": 29.84, "forwardPe": 15.42, "beta": 2.22, "logo": "../holding-logos/NVDA.png"}, {"symbol": "TCEHY", "description": "TENCENT HLDGS LTD FUNSPONSORED ADR 1 ADR REPS 1 ORD SHS", "qty": 240.0, "marketValue": 14186.4, "costBasis": 12541.1, "gainDollar": 1645.3, "accounts": ["Aijun_IRA ...819"], "gainPct": 13.119263860426916, "weight": 3.1514037301740516, "sector": "Communications & Media", "pe": null, "forwardPe": null, "beta": null, "logo": "../holding-logos/TCEHY.png"}, {"symbol": "ASML", "description": "ASML HLDG N V FSPONSORED ADR 1 ADR REPS 1 ORD SHS", "qty": 7.304, "marketValue": 13066.939999999999, "costBasis": 7912.049999999999, "gainDollar": 5154.89, "accounts": ["Aijun_IRA ...819", "Robinhood Investing", "Robinhood Roth IRA"], "gainPct": 65.15239413299967, "weight": 2.902723979160359, "sector": "Technology & Semiconductors", "pe": 58.99, "forwardPe": 34.52, "beta": 1.78, "logo": "../holding-logos/ASML.png"}, {"symbol": "UNH", "description": "UNITEDHEALTH GROUP INC", "qty": 30.0, "marketValue": 12732.0, "costBasis": 10616.97, "gainDollar": 2115.03, "accounts": ["Aijun_IRA ...819", "Kevin_Individual ...360"], "gainPct": 19.921220461205035, "weight": 2.828319537907857, "sector": "Healthcare", "pe": 32.12, "forwardPe": 20.32, "beta": 0.63, "logo": "../holding-logos/UNH.png"}, {"symbol": "AAPL", "description": "APPLE INC", "qty": 40.7, "marketValue": 12691.6, "costBasis": 10333.670000000002, "gainDollar": 2357.93, "accounts": ["Ning_IRA ...631", "Ning_Individual ...240", "Robinhood Investing"], "gainPct": 22.817933996343985, "weight": 2.819344977011574, "sector": "Technology & Semiconductors", "pe": 37.34, "forwardPe": 32.01, "beta": 1.09, "logo": "../holding-logos/AAPL.png"}, {"symbol": "MRVL", "description": "MARVELL TECHNOLOGY INC", "qty": 50.0, "marketValue": 11831.0, "costBasis": 5328.63, "gainDollar": 6502.37, "accounts": ["Aijun_IRA ...819"], "gainPct": 122.02705010481118, "weight": 2.6281690585130266, "sector": "Technology & Semiconductors", "pe": 83.82, "forwardPe": 39.67, "beta": 2.21, "logo": "../holding-logos/MRVL.png"}, {"symbol": "UPS", "description": "UNITED PARCEL SVC INC CLASS B", "qty": 100.035, "marketValue": 11248.04, "costBasis": 10452.5, "gainDollar": 795.5400000000001, "accounts": ["Ning_IRA ...631", "Robinhood Roth IRA"], "gainPct": 7.611002152595074, "weight": 2.498668810490818, "sector": "Industrials & Aerospace", "pe": 17.92, "forwardPe": 13.97, "beta": 1.04, "logo": "../holding-logos/UPS.png"}, {"symbol": "LVMUY/LVMHF", "description": "LVMH Moet Hennessy Louis Vuitton", "qty": 80.0, "marketValue": 11176.86, "costBasis": 14366.699999999999, "gainDollar": -3189.84, "accounts": ["Kevin_Roth_IRA ...738", "Ning_IRA ...631"], "gainPct": -22.203011129904574, "weight": 2.48285670047603, "sector": "Consumer Discretionary", "pe": null, "forwardPe": null, "beta": null, "logo": "../holding-logos/LVMUY.png"}, {"symbol": "AXP", "description": "AMERICAN EXPRESS CO", "qty": 26.59, "marketValue": 9313.17, "costBasis": 7640.5599999999995, "gainDollar": 1672.61, "accounts": ["Aijun_IRA ...819", "Robinhood Roth IRA"], "gainPct": 21.891196456804213, "weight": 2.0688517649118223, "sector": "Financials", "pe": 21.95, "forwardPe": 17.46, "beta": 1.04, "logo": "../holding-logos/AXP.png"}, {"symbol": "MSFT", "description": "MICROSOFT CORP", "qty": 23.0, "marketValue": 8876.49, "costBasis": 9472.97, "gainDollar": -596.48, "accounts": ["Aijun_IRA ...819", "Robinhood Investing"], "gainPct": -6.296652475411619, "weight": 1.9718465358972443, "sector": "Technology & Semiconductors", "pe": 23.26, "forwardPe": 20.08, "beta": 1.12, "logo": "../holding-logos/MSFT.png"}, {"symbol": "HOOD", "description": "ROBINHOOD MKTS INC CLASS A", "qty": 79.0, "marketValue": 8814.58, "costBasis": 5927.62, "gainDollar": 2886.9599999999996, "accounts": ["Kevin_Individual ...360", "Robinhood Investing", "Robinhood Roth IRA"], "gainPct": 48.70352687925339, "weight": 1.9580936877514796, "sector": "Financials", "pe": 54.52, "forwardPe": 43.5, "beta": 2.33, "logo": "../holding-logos/HOOD.png"}, {"symbol": "CRWD", "description": "CROWDSTRIKE HLDGS INC CLASS CLASS A", "qty": 45.0, "marketValue": 8417.08, "costBasis": 4685.25, "gainDollar": 3731.83, "accounts": ["Ning_IRA ...631"], "gainPct": 79.65060562403286, "weight": 1.869792005665525, "sector": "Internet / Software", "pe": null, "forwardPe": 124.74, "beta": 1.24, "logo": "../holding-logos/CRWD.png"}, {"symbol": "NKE", "description": "NIKE INC CLASS CLASS B", "qty": 187.0, "marketValue": 8293.45, "costBasis": 10486.35, "gainDollar": -2192.9, "accounts": ["Aijun_IRA ...819", "Kevin_Individual ...360"], "gainPct": -20.911947436429262, "weight": 1.84232851646732, "sector": "Consumer Discretionary", "pe": 21.01, "forwardPe": 19.97, "beta": 1.11, "logo": "../holding-logos/NKE.png"}, {"symbol": "H", "description": "HYATT HOTELS CORP CLASS A", "qty": 42.0, "marketValue": 8027.88, "costBasis": 5772.43, "gainDollar": 2255.45, "accounts": ["Aijun_IRA ...819", "Ning_IRA ...631"], "gainPct": 39.07279949691897, "weight": 1.7833341071300448, "sector": "Travel & Leisure", "pe": null, "forwardPe": 39.55, "beta": 1.32, "logo": "../holding-logos/H.png"}, {"symbol": "COST", "description": "COSTCO WHSL CORP NEW", "qty": 8.0, "marketValue": 7328.0, "costBasis": 2686.92, "gainDollar": 4641.08, "accounts": ["Kevin_Individual ...360"], "gainPct": 172.7286260848853, "weight": 1.6278609467317608, "sector": "Consumer Discretionary", "pe": 47.87, "forwardPe": 41.95, "beta": 0.87, "logo": "../holding-logos/COST.png"}, {"symbol": "AMD", "description": "ADVANCED MICRO DEVICES I", "qty": 13.0, "marketValue": 7257.58, "costBasis": 1906.82, "gainDollar": 5350.76, "accounts": ["Kevin_Individual ...360"], "gainPct": 280.6116990591666, "weight": 1.612217665090269, "sector": "Technology & Semiconductors", "pe": 169.95, "forwardPe": 39.02, "beta": 2.47, "logo": "../holding-logos/AMD.png"}, {"symbol": "PANW", "description": "PALO ALTO NETWORKS INC", "qty": 21.0, "marketValue": 6841.17, "costBasis": 4197.52, "gainDollar": 2643.65, "accounts": ["Aijun_IRA ...819"], "gainPct": 62.98123653967104, "weight": 1.519715266505584, "sector": "Internet / Software", "pe": 286.3, "forwardPe": 84.72, "beta": 0.9, "logo": "../holding-logos/PANW.png"}, {"symbol": "QQQ", "description": "INVESCO QQQ TR", "qty": 9.3, "marketValue": 6724.29, "costBasis": 4721.7, "gainDollar": 2002.5900000000001, "accounts": ["Ning_IRA ...631", "Ning_Individual ...240", "Robinhood Investing"], "gainPct": 42.41247855645213, "weight": 1.4937512398333666, "sector": "US Equity ETFs", "pe": null, "forwardPe": null, "beta": 1.23, "logo": "../holding-logos/QQQ.png"}, {"symbol": "JPM", "description": "JPMORGAN CHASE & CO", "qty": 20.0, "marketValue": 6720.6, "costBasis": 4242.73, "gainDollar": 2477.87, "accounts": ["Ning_IRA ...631"], "gainPct": 58.40272654635106, "weight": 1.4929315336524933, "sector": "Financials", "pe": 16.02, "forwardPe": 14.11, "beta": 0.99, "logo": "../holding-logos/JPM.png"}, {"symbol": "CVX", "description": "CHEVRON CORP NEW", "qty": 34.0, "marketValue": 5995.56, "costBasis": 5761.82, "gainDollar": 233.74, "accounts": ["Aijun_IRA ...819"], "gainPct": 4.056704305236887, "weight": 1.3318692655277122, "sector": "Energy & Utilities", "pe": 29.36, "forwardPe": 13.46, "beta": 0.49, "logo": "../holding-logos/CVX.png"}, {"symbol": "CRM", "description": "SALESFORCE INC", "qty": 34.0, "marketValue": 5554.8, "costBasis": 8922.76, "gainDollar": -3367.96, "accounts": ["Ning_IRA ...631", "Robinhood Investing"], "gainPct": -37.74571993419077, "weight": 1.2339576947196487, "sector": "Internet / Software", "pe": 19.23, "forwardPe": 10.63, "beta": 1.17, "logo": "../holding-logos/CRM.png"}, {"symbol": "SPYM", "description": "State Street SPDR Portfolio S&P 1500 Composite Stock Market ETF", "qty": 59.306, "marketValue": 5204.42, "costBasis": 2578.54, "gainDollar": 2625.88, "accounts": ["Robinhood Investing"], "gainPct": 101.83592265390493, "weight": 1.1561233717780717, "sector": "US Equity ETFs", "pe": null, "forwardPe": null, "beta": 1.01, "logo": "../holding-logos/SPYM.png"}, {"symbol": "ALK", "description": "ALASKA AIR GROUP INC", "qty": 97.0, "marketValue": 4719.05, "costBasis": 4869.99, "gainDollar": -150.94, "accounts": ["Ning_IRA ...631"], "gainPct": -3.099390347824123, "weight": 1.0483020197427013, "sector": "Travel & Leisure", "pe": 95.5, "forwardPe": 7.93, "beta": 1.29, "logo": "../holding-logos/ALK.png"}, {"symbol": "LULU", "description": "LULULEMON ATHLETICA INC", "qty": 36.0, "marketValue": 4286.139999999999, "costBasis": 8229.64, "gainDollar": -3943.5, "accounts": ["Aijun_IRA ...819", "Robinhood Investing", "Robinhood Roth IRA"], "gainPct": -47.91825644864174, "weight": 0.9521342683167122, "sector": "Consumer Discretionary", "pe": 9.56, "forwardPe": 10.37, "beta": 0.86, "logo": "../holding-logos/LULU.png"}, {"symbol": "INTC", "description": "INTEL CORP", "qty": 39.0, "marketValue": 4280.05, "costBasis": 1638.72, "gainDollar": 2641.33, "accounts": ["Ning_IRA ...631"], "gainPct": 161.18250829916033, "weight": 0.9507814199043767, "sector": "Technology & Semiconductors", "pe": null, "forwardPe": 76.5, "beta": 2.21, "logo": "../holding-logos/INTC.png"}, {"symbol": "MRK", "description": "MERCK & CO. INC.", "qty": 32.348, "marketValue": 4034.99, "costBasis": 3051.8999999999996, "gainDollar": 983.09, "accounts": ["Ning_IRA ...631", "Robinhood Investing"], "gainPct": 32.21239228021888, "weight": 0.89634315522014, "sector": "Healthcare", "pe": 36.46, "forwardPe": 13.47, "beta": 0.21, "logo": "../holding-logos/MRK.png"}, {"symbol": "DHI", "description": "D R HORTON INC", "qty": 25.0, "marketValue": 3789.5, "costBasis": 4018.96, "gainDollar": -229.46, "accounts": ["Ning_IRA ...631"], "gainPct": -5.709437267352748, "weight": 0.8418093692194333, "sector": "Real Estate / Housing", "pe": 14.86, "forwardPe": 13.36, "beta": 1.36, "logo": "../holding-logos/DHI.png"}, {"symbol": "MS", "description": "MORGAN STANLEY", "qty": 17.0, "marketValue": 3782.5, "costBasis": 1803.11, "gainDollar": 1979.39, "accounts": ["Aijun_IRA ...819"], "gainPct": 109.77644181442065, "weight": 0.8402543710443346, "sector": "Financials", "pe": 19.38, "forwardPe": 16.54, "beta": 1.22, "logo": "../holding-logos/MS.png"}, {"symbol": "NET", "description": "CLOUDFLARE INC CLASS A", "qty": 13.0, "marketValue": 3488.68, "costBasis": 2566.23, "gainDollar": 922.45, "accounts": ["Aijun_IRA ...819"], "gainPct": 35.94572583127779, "weight": 0.7749844333575544, "sector": "Internet / Software", "pe": null, "forwardPe": 153.13, "beta": 1.66, "logo": "../holding-logos/NET.png"}, {"symbol": "NVO", "description": "NOVO-NORDISK A S FSPONSORED ADR 1 ADR REPS 1 ORD SHS", "qty": 70.0, "marketValue": 3462.82, "costBasis": 3744.56, "gainDollar": -281.74, "accounts": ["Aijun_IRA ...819"], "gainPct": -7.523981455765163, "weight": 0.7692398258135474, "sector": "Healthcare", "pe": 11.84, "forwardPe": 15.32, "beta": 0.77, "logo": "../holding-logos/NVO.png"}, {"symbol": "HLT", "description": "HILTON WORLDWIDE HLDGS I", "qty": 10.0, "marketValue": 3363.8, "costBasis": 2683.83, "gainDollar": 679.97, "accounts": ["Kevin_Roth_IRA ...738"], "gainPct": 25.335807409560218, "weight": 0.747243265913796, "sector": "Travel & Leisure", "pe": 51.69, "forwardPe": 32.56, "beta": 1.05, "logo": "../holding-logos/HLT.png"}, {"symbol": "ELV", "description": "ELEVANCE HEALTH INC", "qty": 8.0, "marketValue": 3335.04, "costBasis": 2614.71, "gainDollar": 720.33, "accounts": ["Aijun_IRA ...819"], "gainPct": 27.549135468178115, "weight": 0.7408544448401052, "sector": "Healthcare", "pe": 17.78, "forwardPe": 14.26, "beta": 0.68, "logo": "../holding-logos/ELV.png"}, {"symbol": "EWY", "description": "ISHARES MSCI SOUTH KOREAETF", "qty": 18.0, "marketValue": 3298.68, "costBasis": 1513.89, "gainDollar": 1784.79, "accounts": ["Ning_IRA ...631"], "gainPct": 117.8942987931752, "weight": 0.7327773400334503, "sector": "International ETFs", "pe": null, "forwardPe": null, "beta": 1.48, "logo": "../holding-logos/EWY.png"}, {"symbol": "BX", "description": "BLACKSTONE INC", "qty": 26.78, "marketValue": 3273.6600000000003, "costBasis": 4079.29, "gainDollar": -805.63, "accounts": ["Aijun_IRA ...819", "Kevin_Roth_IRA ...738", "Robinhood Roth IRA"], "gainPct": -19.749270093570203, "weight": 0.7272193322704552, "sector": "Financials", "pe": 31.5, "forwardPe": 16.38, "beta": 1.56, "logo": "../holding-logos/BX.png"}, {"symbol": "COMP", "description": "COMPASS INC CLASS A", "qty": 270.0, "marketValue": 3164.4, "costBasis": 1998.55, "gainDollar": 1165.85, "accounts": ["Aijun_IRA ...819"], "gainPct": 58.334792724725425, "weight": 0.702948032183131, "sector": "Real Estate / Housing", "pe": 1179.44, "forwardPe": 40.89, "beta": 2.35, "logo": "../holding-logos/COMP.png"}, {"symbol": "TRV", "description": "TRAVELERS COS INC", "qty": 9.0, "marketValue": 3051.72, "costBasis": 2237.28, "gainDollar": 814.44, "accounts": ["Aijun_IRA ...819"], "gainPct": 36.40313237502682, "weight": 0.6779170044159727, "sector": "Financials", "pe": 10.18, "forwardPe": 11.96, "beta": 0.48, "logo": "../holding-logos/TRV.png"}, {"symbol": "ISRG", "description": "INTUITIVE SURGICAL INC", "qty": 7.0, "marketValue": 2909.45, "costBasis": 3095.04, "gainDollar": -185.59, "accounts": ["Aijun_IRA ...819", "Robinhood Investing"], "gainPct": -5.996368382961125, "weight": 0.6463127772200765, "sector": "Healthcare", "pe": 51.68, "forwardPe": 35.98, "beta": 1.45, "logo": "../holding-logos/ISRG.png"}, {"symbol": "TOL", "description": "TOLL BROS INC", "qty": 18.285, "marketValue": 2796.8, "costBasis": 2488.55, "gainDollar": 308.25, "accounts": ["Ning_IRA ...631", "Robinhood Roth IRA"], "gainPct": 12.386731229028952, "weight": 0.6212884137308117, "sector": "Real Estate / Housing", "pe": 11.89, "forwardPe": 11.13, "beta": 1.34, "logo": "../holding-logos/TOL.png"}, {"symbol": "UAL", "description": "United Airlines", "qty": 20.0, "marketValue": 2660.0, "costBasis": 1254.38, "gainDollar": 1405.62, "accounts": ["Robinhood Investing"], "gainPct": 112.05695243865495, "weight": 0.5908993065374568, "sector": "Travel & Leisure", "pe": 11.89, "forwardPe": 9.05, "beta": 1.27, "logo": "../holding-logos/UAL.png"}, {"symbol": "NBIS", "description": "NEBIUS GROUP N V A FCLASS A", "qty": 12.0, "marketValue": 2631.36, "costBasis": 2185.63, "gainDollar": 445.73, "accounts": ["Ning_IRA ...631"], "gainPct": 20.393662239262824, "weight": 0.5845371425753392, "sector": "Internet / Software", "pe": 71.94, "forwardPe": null, "beta": 4.37, "logo": "../holding-logos/NBIS.png"}, {"symbol": "BAC", "description": "BANK OF AMERICA CORP", "qty": 44.0, "marketValue": 2624.16, "costBasis": 1608.88, "gainDollar": 1015.28, "accounts": ["Aijun_IRA ...819"], "gainPct": 63.10476853463278, "weight": 0.582937715880952, "sector": "Financials", "pe": 14.57, "forwardPe": 11.53, "beta": 1.18, "logo": "../holding-logos/BAC.png"}, {"symbol": "TMUS", "description": "T-MOBILE US INC", "qty": 14.0, "marketValue": 2622.06, "costBasis": 2446.69, "gainDollar": 175.37, "accounts": ["Ning_IRA ...631"], "gainPct": 7.167642815395493, "weight": 0.5824712164284225, "sector": "Communications & Media", "pe": 18.88, "forwardPe": 13.09, "beta": 0.32, "logo": "../holding-logos/TMUS.png"}, {"symbol": "RTX", "description": "RTX CORP", "qty": 13.0, "marketValue": 2554.05, "costBasis": 2518.4500000000003, "gainDollar": 35.6, "accounts": ["Aijun_IRA ...819", "Robinhood Roth IRA"], "gainPct": 1.413567869125851, "weight": 0.5673632984443577, "sector": "Industrials & Aerospace", "pe": 37.34, "forwardPe": 26.13, "beta": 0.3, "logo": "../holding-logos/RTX.png"}, {"symbol": "NOK", "description": "NOKIA CORP FSPONSORED ADR 1 ADR REPS 1 ORD SHS", "qty": 200.0, "marketValue": 2488.0, "costBasis": 2797.81, "gainDollar": -309.81, "accounts": ["Ning_IRA ...631"], "gainPct": -11.073303762585738, "weight": 0.5526907799493205, "sector": "Technology & Semiconductors", "pe": 75.3, "forwardPe": 25.64, "beta": 1.16, "logo": "../holding-logos/NOK.png"}, {"symbol": "PNQI", "description": "Invesco Exchange-Traded Fund Trust NASDAQ Internet ETF", "qty": 52.0, "marketValue": 2468.71, "costBasis": 1431.72, "gainDollar": 1036.99, "accounts": ["Robinhood Roth IRA"], "gainPct": 72.42966501829967, "weight": 0.5484056492639418, "sector": "US Equity ETFs", "pe": null, "forwardPe": null, "beta": 1.24, "logo": "../holding-logos/PNQI.png"}, {"symbol": "FISV", "description": "FISERV INC", "qty": 48.0, "marketValue": 2407.2, "costBasis": 6060.64, "gainDollar": -3653.44, "accounts": ["Aijun_IRA ...819", "Ning_IRA ...631"], "gainPct": -60.281422424034425, "weight": 0.534741658156754, "sector": "Internet / Software", "pe": 8.88, "forwardPe": 5.86, "beta": 0.81, "logo": "../holding-logos/FISV.png"}, {"symbol": "GBTC", "description": "GRAYSCALE BITCOIN TRUST ETF", "qty": 48.0, "marketValue": 2372.64, "costBasis": 0.0, "gainDollar": 2372.64, "accounts": ["Aijun_IRA ...819"], "gainPct": 0.0, "weight": 0.527064410023696, "sector": "Crypto / Gold", "pe": null, "forwardPe": null, "beta": 2.18, "logo": "../holding-logos/GBTC.png"}, {"symbol": "COF", "description": "CAPITAL ONE FINL CORP", "qty": 11.0, "marketValue": 2217.71, "costBasis": 2086.65, "gainDollar": 131.06, "accounts": ["Aijun_IRA ...819"], "gainPct": 6.280880837706371, "weight": 0.4926478575568358, "sector": "Financials", "pe": 72.31, "forwardPe": 8.47, "beta": 1.02, "logo": "../holding-logos/COF.png"}, {"symbol": "DAL", "description": "DELTA AIR LINES INC DEL", "qty": 25.0, "marketValue": 2180.0, "costBasis": 1196.59, "gainDollar": 983.41, "accounts": ["Ning_IRA ...631"], "gainPct": 82.18437392924895, "weight": 0.48427086024498334, "sector": "Travel & Leisure", "pe": 13.54, "forwardPe": 11.27, "beta": 1.3, "logo": "../holding-logos/DAL.png"}, {"symbol": "SPY", "description": "SPDR S&P 500 ETF Trust", "qty": 2.907, "marketValue": 2167.44, "costBasis": 1574.3600000000001, "gainDollar": 593.08, "accounts": ["Robinhood Investing"], "gainPct": 37.67118067024061, "weight": 0.4814807492336637, "sector": "US Equity ETFs", "pe": null, "forwardPe": null, "beta": 1.01, "logo": "../holding-logos/SPY.png"}, {"symbol": "AKAM", "description": "AKAMAI TECHNOLOGIES INC", "qty": 16.0, "marketValue": 2020.48, "costBasis": 1867.01, "gainDollar": 153.47, "accounts": ["Ning_IRA ...631"], "gainPct": 8.220095232484024, "weight": 0.4488346732604514, "sector": "Internet / Software", "pe": 38.12, "forwardPe": 15.85, "beta": 0.64, "logo": "../holding-logos/AKAM.png"}, {"symbol": "CRWV", "description": "COREWEAVE INC CLASS A", "qty": 22.0, "marketValue": 1953.6, "costBasis": 2559.31, "gainDollar": -605.71, "accounts": ["Ning_IRA ...631"], "gainPct": -23.66692585110831, "weight": 0.4339777764103667, "sector": "Internet / Software", "pe": null, "forwardPe": null, "beta": 7.26, "logo": "../holding-logos/CRWV.png"}, {"symbol": "GLD", "description": "SPDR GOLD SHARES", "qty": 5.116, "marketValue": 1931.8, "costBasis": 1975.44, "gainDollar": -43.64, "accounts": ["Aijun_IRA ...819", "Robinhood Investing"], "gainPct": -2.2091280929818167, "weight": 0.42913506780791694, "sector": "Crypto / Gold", "pe": null, "forwardPe": null, "beta": 0.17, "logo": "../holding-logos/GLD.png"}, {"symbol": "RKT", "description": "ROCKET COMPANIES CLA A CLASS A", "qty": 130.0, "marketValue": 1875.9, "costBasis": 2490.78, "gainDollar": -614.88, "accounts": ["Aijun_IRA ...819"], "gainPct": -24.686242863681255, "weight": 0.4167172966667726, "sector": "Financials", "pe": 267.29, "forwardPe": 14.9, "beta": 2.18, "logo": "../holding-logos/RKT.png"}, {"symbol": "TMF", "description": "DIREXION DAILY 20+ YEAR TREASURY BULL 3X SHARES", "qty": 49.0, "marketValue": 1640.52, "costBasis": 2864.7, "gainDollar": -1224.18, "accounts": ["Aijun_IRA ...819"], "gainPct": -42.73327049952875, "weight": 0.36442937231610095, "sector": "Fixed Income", "pe": null, "forwardPe": null, "beta": 1.48, "logo": "../holding-logos/TMF.png"}, {"symbol": "SPCX", "description": "SPACE EX TECH SPACEX CLASS A", "qty": 11.0, "marketValue": 1603.35, "costBasis": 1485.0, "gainDollar": 118.35, "accounts": ["Ning_Individual ...240"], "gainPct": 7.96969696969697, "weight": 0.35617233200632753, "sector": "Industrials & Aerospace", "pe": null, "forwardPe": null, "beta": null, "logo": "../holding-logos/SPCX.png"}, {"symbol": "VST", "description": "VISTRA CORP", "qty": 10.0, "marketValue": 1585.8, "costBasis": 1583.3, "gainDollar": 2.5, "accounts": ["Ning_IRA ...631"], "gainPct": 0.15789806101181078, "weight": 0.352273729438759, "sector": "Energy & Utilities", "pe": 25.22, "forwardPe": 13.32, "beta": 1.42, "logo": "../holding-logos/VST.png"}, {"symbol": "SNAP", "description": "SNAP INC CLASS CLASS A", "qty": 330.003, "marketValue": 1561.24, "costBasis": 3604.7000000000003, "gainDollar": -2043.46, "accounts": ["Ning_IRA ...631", "Robinhood Roth IRA"], "gainPct": -56.688767442505615, "weight": 0.34681790727012746, "sector": "Communications & Media", "pe": null, "forwardPe": 39.81, "beta": 1.03, "logo": "../holding-logos/SNAP.png"}, {"symbol": "SOFI", "description": "SOFI TECHNOLOGIES INC", "qty": 80.0, "marketValue": 1502.4, "costBasis": 741.8, "gainDollar": 760.6, "accounts": ["Aijun_IRA ...819"], "gainPct": 102.53437584254516, "weight": 0.3337470368954418, "sector": "Internet / Software", "pe": 41.37, "forwardPe": 22.65, "beta": 2.17, "logo": "../holding-logos/SOFI.png"}, {"symbol": "CMCSA", "description": "COMCAST CORP NEW CLASS A", "qty": 63.0, "marketValue": 1484.91, "costBasis": 2223.56, "gainDollar": -738.65, "accounts": ["Ning_IRA ...631"], "gainPct": -33.21925201028981, "weight": 0.32986176288365976, "sector": "Communications & Media", "pe": 4.68, "forwardPe": 6.33, "beta": 0.66, "logo": "../holding-logos/CMCSA.png"}, {"symbol": "SHOP", "description": "Shopify", "qty": 12.0, "marketValue": 1434.0, "costBasis": 1286.3899999999999, "gainDollar": 147.61, "accounts": ["Robinhood Roth IRA"], "gainPct": 11.4747471606589, "weight": 0.3185524832987643, "sector": "Internet / Software", "pe": 117.43, "forwardPe": 50.64, "beta": 2.58, "logo": "../holding-logos/SHOP.png"}, {"symbol": "AVGO", "description": "BROADCOM INC", "qty": 3.7, "marketValue": 1415.47, "costBasis": 1496.56, "gainDollar": -81.09, "accounts": ["Ning_IRA ...631", "Robinhood Roth IRA"], "gainPct": -5.41842625755065, "weight": 0.31443618098668197, "sector": "Technology & Semiconductors", "pe": 60.0, "forwardPe": 18.55, "beta": 1.47, "logo": "../holding-logos/AVGO.png"}, {"symbol": "RBLX", "description": "ROBLOX CORP CLASS A", "qty": 25.0, "marketValue": 1384.0, "costBasis": 1939.28, "gainDollar": -555.28, "accounts": ["Kevin_Roth_IRA ...738"], "gainPct": -28.6333072067984, "weight": 0.30744535347663166, "sector": "Consumer Discretionary", "pe": null, "forwardPe": null, "beta": 1.42, "logo": "../holding-logos/RBLX.png"}, {"symbol": "IEFA", "description": "iShares Core MSCI EAFE ETF", "qty": 14.227, "marketValue": 1383.41, "costBasis": 810.9100000000001, "gainDollar": 572.5, "accounts": ["Robinhood Investing"], "gainPct": 70.59969663711139, "weight": 0.3073142893447305, "sector": "International ETFs", "pe": null, "forwardPe": null, "beta": 0.79, "logo": "../holding-logos/IEFA.png"}, {"symbol": "FICO", "description": "Fair Isaac", "qty": 1.0, "marketValue": 1290.0, "costBasis": 1357.0, "gainDollar": -67.0, "accounts": ["Robinhood Roth IRA"], "gainPct": -4.937361827560796, "weight": 0.2865639494110223, "sector": "Financials", "pe": 40.27, "forwardPe": 23.44, "beta": 1.29, "logo": "../holding-logos/FICO.png"}, {"symbol": "ON", "description": "ON SEMICONDUCTOR CORP", "qty": 12.0, "marketValue": 1152.82, "costBasis": 1084.22, "gainDollar": 68.6, "accounts": ["Ning_IRA ...631"], "gainPct": 6.3271291804246355, "weight": 0.25609042803101917, "sector": "Technology & Semiconductors", "pe": 65.02, "forwardPe": 21.3, "beta": 2.01, "logo": "../holding-logos/ON.png"}, {"symbol": "ADBE", "description": "ADOBE INC", "qty": 5.0, "marketValue": 1113.5, "costBasis": 1251.75, "gainDollar": -138.25, "accounts": ["Ning_IRA ...631"], "gainPct": -11.044537647293788, "weight": 0.24735578113889403, "sector": "Internet / Software", "pe": 12.57, "forwardPe": 8.0, "beta": 1.42, "logo": "../holding-logos/ADBE.png"}, {"symbol": "INTU", "description": "INTUIT", "qty": 4.0, "marketValue": 1090.73, "costBasis": 1815.55, "gainDollar": -724.82, "accounts": ["Aijun_IRA ...819"], "gainPct": -39.922888380931404, "weight": 0.24229759421789482, "sector": "Internet / Software", "pe": 16.67, "forwardPe": 10.05, "beta": 0.98, "logo": "../holding-logos/INTU.png"}, {"symbol": "TLT", "description": "iShares 20+ Year Treasury Bond ETF", "qty": 12.475, "marketValue": 1066.73, "costBasis": 1086.15, "gainDollar": -19.42, "accounts": ["Robinhood Roth IRA"], "gainPct": -1.7879666712700824, "weight": 0.23696617190327118, "sector": "Fixed Income", "pe": null, "forwardPe": null, "beta": 0.51, "logo": "../holding-logos/TLT.png"}, {"symbol": "UBER", "description": "UBER TECHNOLOGIES INC", "qty": 14.0, "marketValue": 1043.7, "costBasis": 1054.27, "gainDollar": -10.57, "accounts": ["Ning_IRA ...631"], "gainPct": -1.0025894694907378, "weight": 0.23185022790719687, "sector": "Travel & Leisure", "pe": 18.55, "forwardPe": 16.82, "beta": 1.13, "logo": "../holding-logos/UBER.png"}, {"symbol": "MU", "description": "MICRON TECHNOLOGY INC", "qty": 1.0, "marketValue": 979.49, "costBasis": 949.6, "gainDollar": 29.89, "accounts": ["Ning_IRA ...631"], "gainPct": 3.1476411120471774, "weight": 0.21758645178961414, "sector": "Other / Unclassified", "pe": null, "forwardPe": null, "beta": null, "logo": "../holding-logos/MU.png"}, {"symbol": "NFLX", "description": "NETFLIX INC", "qty": 13.0, "marketValue": 953.76, "costBasis": 1239.6, "gainDollar": -285.84, "accounts": ["Aijun_IRA ...819"], "gainPct": -23.059051306873187, "weight": 0.21187072278314464, "sector": "Communications & Media", "pe": 25.09, "forwardPe": 20.24, "beta": 1.52, "logo": "../holding-logos/NFLX.png"}, {"symbol": "SKHYV", "description": "SK HYNIX INC WIFSPONSORED WHEN ISSUED1 ADR REPS 0.1 ORD SHS", "qty": 5.0, "marketValue": 847.5, "costBasis": 0.0, "gainDollar": 0.0, "accounts": ["Ning_IRA ...631"], "gainPct": 0.0, "weight": 0.18826585048514835, "sector": "Other / Unclassified", "pe": null, "forwardPe": null, "beta": null, "logo": "../holding-logos/SKHYV.png"}, {"symbol": "IEMG", "description": "iShares Core MSCI Emerging Markets ETF", "qty": 10.076, "marketValue": 802.06, "costBasis": 487.93999999999994, "gainDollar": 314.12, "accounts": ["Robinhood Investing"], "gainPct": 64.37676763536501, "weight": 0.1781716909027942, "sector": "International ETFs", "pe": null, "forwardPe": null, "beta": 0.74, "logo": "../holding-logos/IEMG.png"}, {"symbol": "RVI", "description": "Robinhood Ventures Fund I", "qty": 23.0, "marketValue": 780.51, "costBasis": 1300.26, "gainDollar": -519.75, "accounts": ["Robinhood Investing", "Robinhood Roth IRA"], "gainPct": -39.97277467583407, "weight": 0.17338451794945503, "sector": "Alternatives / Private Markets", "pe": null, "forwardPe": null, "beta": null, "logo": "../holding-logos/RVI.png"}, {"symbol": "REGN", "description": "REGENERON PHARMACEUTICAL", "qty": 1.0, "marketValue": 664.52, "costBasis": 1034.71, "gainDollar": -370.19, "accounts": ["Aijun_IRA ...819"], "gainPct": -35.77717428071633, "weight": 0.1476181981880717, "sector": "Healthcare", "pe": 15.94, "forwardPe": 12.15, "beta": 0.23, "logo": "../holding-logos/REGN.png"}, {"symbol": "NOW", "description": "SERVICENOW INC", "qty": 6.0, "marketValue": 646.2, "costBasis": 780.96, "gainDollar": -134.76, "accounts": ["Ning_IRA ...631"], "gainPct": -17.255685310387214, "weight": 0.14354854582124232, "sector": "Internet / Software", "pe": 63.24, "forwardPe": 21.02, "beta": 0.95, "logo": "../holding-logos/NOW.png"}, {"symbol": "IJR", "description": "iShares S&P SmallCap 600 ETF", "qty": 4.018, "marketValue": 588.62, "costBasis": 289.55, "gainDollar": 299.07, "accounts": ["Robinhood Investing"], "gainPct": 103.28786047314797, "weight": 0.13075757511807437, "sector": "US Equity ETFs", "pe": null, "forwardPe": null, "beta": 1.02, "logo": "../holding-logos/IJR.png"}, {"symbol": "SPMD", "description": "State Street SPDR Portfolio S&P 400 Mid Cap ETF", "qty": 8.05, "marketValue": 536.92, "costBasis": 259.89, "gainDollar": 277.03, "accounts": ["Robinhood Investing"], "gainPct": 106.59509792604563, "weight": 0.11927280288198919, "sector": "US Equity ETFs", "pe": null, "forwardPe": null, "beta": 1.02, "logo": "../holding-logos/SPMD.png"}, {"symbol": "V", "description": "Visa", "qty": 1.0, "marketValue": 362.0, "costBasis": 342.78, "gainDollar": 19.22, "accounts": ["Robinhood Roth IRA"], "gainPct": 5.607094929692515, "weight": 0.08041561991224036, "sector": "Financials", "pe": 31.84, "forwardPe": 24.29, "beta": 0.75, "logo": "../holding-logos/V.png"}, {"symbol": "TTD", "description": "Trade Desk", "qty": 14.0, "marketValue": 266.75, "costBasis": 868.08, "gainDollar": -601.33, "accounts": ["Robinhood Roth IRA"], "gainPct": -69.27126532116856, "weight": 0.059256537601077665, "sector": "Internet / Software", "pe": 21.53, "forwardPe": 16.13, "beta": 1.03, "logo": "../holding-logos/TTD.png"}, {"symbol": "ITOT", "description": "iShares Core S&P Total US Stock Market ETF", "qty": 1.005, "marketValue": 164.48, "costBasis": 60.629999999999995, "gainDollar": 103.85, "accounts": ["Robinhood Investing"], "gainPct": 171.28484248721756, "weight": 0.03653801426288755, "sector": "US Equity ETFs", "pe": null, "forwardPe": null, "beta": 1.02, "logo": "../holding-logos/ITOT.png"}, {"symbol": "PYPL", "description": "PayPal", "qty": 3.0, "marketValue": 136.22, "costBasis": 229.45999999999998, "gainDollar": -93.24, "accounts": ["Robinhood Roth IRA"], "gainPct": -40.634533251982916, "weight": 0.03026026448741818, "sector": "Internet / Software", "pe": 8.53, "forwardPe": 7.91, "beta": 1.33, "logo": "../holding-logos/PYPL.png"}], "sectors": [{"sector": "Technology & Semiconductors", "marketValue": 93770.76000000002, "costBasis": 54493.22, "gainDollar": 39277.54000000001, "gainPct": 72.07784748267767, "weight": 20.830480096800866, "holdingCount": 11, "topSymbols": ["TSM", "NVDA", "ASML", "AAPL", "MRVL", "MSFT"], "color": "#2264a8"}, {"sector": "Consumer Discretionary", "marketValue": 66919.74, "costBasis": 66444.56, "gainDollar": 475.17999999999915, "gainPct": 0.7151526024101885, "weight": 14.86572479686726, "holdingCount": 7, "topSymbols": ["TSLA", "AMZN", "LVMUY/LVMHF", "NKE", "COST", "LULU"], "color": "#d97706"}, {"sector": "Financials", "marketValue": 59609.15000000001, "costBasis": 45707.77, "gainDollar": 13901.380000000001, "gainPct": 30.413603638943666, "weight": 13.241731352739567, "holdingCount": 12, "topSymbols": ["BRK/B", "AXP", "HOOD", "JPM", "MS", "BX"], "color": "#0f766e"}, {"sector": "Communications & Media", "marketValue": 57736.51, "costBasis": 39295.409999999996, "gainDollar": 18441.1, "gainPct": 46.92939964235009, "weight": 12.825738240937195, "holdingCount": 6, "topSymbols": ["GOOG/GOOGL", "TCEHY", "TMUS", "SNAP", "CMCSA", "NFLX"], "color": "#db2777"}, {"sector": "Internet / Software", "marketValue": 39504.170000000006, "costBasis": 40018.340000000004, "gainDollar": -514.170000000001, "gainPct": -1.2848359027385967, "weight": 8.775558894111958, "holdingCount": 15, "topSymbols": ["CRWD", "PANW", "CRM", "NET", "NBIS", "FISV"], "color": "#7c3aed"}, {"sector": "Industrials & Aerospace", "marketValue": 33197.44, "costBasis": 33449.270000000004, "gainDollar": -251.82999999999984, "gainPct": -0.7528714378520064, "weight": 7.3745655168491835, "holdingCount": 4, "topSymbols": ["BA", "UPS", "RTX", "SPCX"], "color": "#64748b"}, {"sector": "Healthcare", "marketValue": 27138.82, "costBasis": 24157.89, "gainDollar": 2980.93, "gainPct": 12.339364075256572, "weight": 6.0286879391897985, "holdingCount": 6, "topSymbols": ["UNH", "MRK", "NVO", "ELV", "ISRG", "REGN"], "color": "#16a34a"}, {"sector": "Travel & Leisure", "marketValue": 21994.43, "costBasis": 16831.49, "gainDollar": 5162.94, "gainPct": 30.674289679642143, "weight": 4.885899787476179, "holdingCount": 6, "topSymbols": ["H", "ALK", "HLT", "UAL", "DAL", "UBER"], "color": "#0891b2"}, {"sector": "US Equity ETFs", "marketValue": 17854.879999999994, "costBasis": 10916.389999999998, "gainDollar": 6938.49, "gainPct": 63.56029786403749, "weight": 3.966329402371994, "holdingCount": 7, "topSymbols": ["QQQ", "SPYM", "PNQI", "SPY", "IJR", "SPMD"], "color": "#2563eb"}, {"sector": "Real Estate / Housing", "marketValue": 9750.7, "costBasis": 8506.060000000001, "gainDollar": 1244.6399999999999, "gainPct": 14.632391495004734, "weight": 2.166045815133376, "holdingCount": 3, "topSymbols": ["DHI", "COMP", "TOL"], "color": "#be123c"}, {"sector": "Energy & Utilities", "marketValue": 7581.360000000001, "costBasis": 7345.12, "gainDollar": 236.24, "gainPct": 3.216285098133183, "weight": 1.6841429949664712, "holdingCount": 2, "topSymbols": ["CVX", "VST"], "color": "#ca8a04"}, {"sector": "International ETFs", "marketValue": 5484.15, "costBasis": 2812.7400000000002, "gainDollar": 2671.41, "gainPct": 94.97536210243392, "weight": 1.218263320280975, "holdingCount": 3, "topSymbols": ["EWY", "IEFA", "IEMG"], "color": "#4f46e5"}, {"sector": "Crypto / Gold", "marketValue": 4304.44, "costBasis": 1975.44, "gainDollar": 2329.0, "gainPct": 117.89778479731096, "weight": 0.956199477831613, "holdingCount": 2, "topSymbols": ["GBTC", "GLD"], "color": "#b7791f"}, {"sector": "Fixed Income", "marketValue": 2707.25, "costBasis": 3950.85, "gainDollar": -1243.6000000000001, "gainPct": -31.476770821468804, "weight": 0.6013955442193721, "holdingCount": 2, "topSymbols": ["TMF", "TLT"], "color": "#475569"}, {"sector": "Other / Unclassified", "marketValue": 1826.99, "costBasis": 949.6, "gainDollar": 29.89, "gainPct": 3.1476411120471774, "weight": 0.40585230227476243, "holdingCount": 2, "topSymbols": ["MU", "SKHYV"], "color": "#667085"}, {"sector": "Alternatives / Private Markets", "marketValue": 780.51, "costBasis": 1300.26, "gainDollar": -519.75, "gainPct": -39.97277467583407, "weight": 0.17338451794945503, "holdingCount": 1, "topSymbols": ["RVI"], "color": "#9333ea"}], "allocation": [{"label": "GOOG/GOOGL", "value": 36928.14, "gainPct": 114.20332997675142, "logo": "../holding-logos/GOOG.png", "detail": "GOOG/GOOGL · $36,928 · 114.2% gain"}, {"label": "TSLA", "value": 18253.4, "gainPct": 20.281082420355805, "logo": "../holding-logos/TSLA.png", "detail": "TSLA · $18,253 · 20.3% gain"}, {"label": "BA", "value": 17792.0, "gainPct": -6.324960565082883, "logo": "../holding-logos/BA.png", "detail": "BA · $17,792 · -6.3% gain"}, {"label": "TSM", "value": 16377.77, "gainPct": 93.23001159773897, "logo": "../holding-logos/TSM.png", "detail": "TSM · $16,378 · 93.2% gain"}, {"label": "BRK/B", "value": 16283.15, "gainPct": 36.93572246110323, "logo": "../holding-logos/BRK-B.png", "detail": "BRK/B · $16,283 · 36.9% gain"}, {"label": "AMZN", "value": 16197.89, "gainPct": 19.45302561568726, "logo": "../holding-logos/AMZN.png", "detail": "AMZN · $16,198 · 19.5% gain"}, {"label": "NVDA", "value": 14333.04, "gainPct": 254.25385197158658, "logo": "../holding-logos/NVDA.png", "detail": "NVDA · $14,333 · 254.3% gain"}, {"label": "TCEHY", "value": 14186.4, "gainPct": 13.119263860426916, "logo": "../holding-logos/TCEHY.png", "detail": "TCEHY · $14,186 · 13.1% gain"}, {"label": "ASML", "value": 13066.939999999999, "gainPct": 65.15239413299967, "logo": "../holding-logos/ASML.png", "detail": "ASML · $13,067 · 65.2% gain"}, {"label": "UNH", "value": 12732.0, "gainPct": 19.921220461205035, "logo": "../holding-logos/UNH.png", "detail": "UNH · $12,732 · 19.9% gain"}, {"label": "AAPL", "value": 12691.6, "gainPct": 22.817933996343985, "logo": "../holding-logos/AAPL.png", "detail": "AAPL · $12,692 · 22.8% gain"}, {"label": "MRVL", "value": 11831.0, "gainPct": 122.02705010481118, "logo": "../holding-logos/MRVL.png", "detail": "MRVL · $11,831 · 122.0% gain"}, {"label": "UPS", "value": 11248.04, "gainPct": 7.611002152595074, "logo": "../holding-logos/UPS.png", "detail": "UPS · $11,248 · 7.6% gain"}, {"label": "LVMUY/LVMHF", "value": 11176.86, "gainPct": -22.203011129904574, "logo": "../holding-logos/LVMUY.png", "detail": "LVMUY/LVMHF · $11,177 · -22.2% gain"}, {"label": "AXP", "value": 9313.17, "gainPct": 21.891196456804213, "logo": "../holding-logos/AXP.png", "detail": "AXP · $9,313 · 21.9% gain"}, {"label": "MSFT", "value": 8876.49, "gainPct": -6.296652475411619, "logo": "../holding-logos/MSFT.png", "detail": "MSFT · $8,876 · -6.3% gain"}, {"label": "HOOD", "value": 8814.58, "gainPct": 48.70352687925339, "logo": "../holding-logos/HOOD.png", "detail": "HOOD · $8,815 · 48.7% gain"}, {"label": "CRWD", "value": 8417.08, "gainPct": 79.65060562403286, "logo": "../holding-logos/CRWD.png", "detail": "CRWD · $8,417 · 79.7% gain"}, {"label": "Other", "value": 191641.75000000003, "gainPct": 12.566445999103928, "detail": "Other · $191,642 · 71 holdings"}], "gainSegments": [{"label": "GOOG/GOOGL", "value": 19688.38, "gainPct": 114.20332997675142, "logo": "../holding-logos/GOOG.png", "detail": "GOOG/GOOGL · $19,688 gain · 114.2%"}, {"label": "NVDA", "value": 10287.06, "gainPct": 254.25385197158658, "logo": "../holding-logos/NVDA.png", "detail": "NVDA · $10,287 gain · 254.3%"}, {"label": "TSM", "value": 7901.98, "gainPct": 93.23001159773897, "logo": "../holding-logos/TSM.png", "detail": "TSM · $7,902 gain · 93.2%"}, {"label": "MRVL", "value": 6502.37, "gainPct": 122.02705010481118, "logo": "../holding-logos/MRVL.png", "detail": "MRVL · $6,502 gain · 122.0%"}, {"label": "AMD", "value": 5350.76, "gainPct": 280.6116990591666, "logo": "../holding-logos/AMD.png", "detail": "AMD · $5,351 gain · 280.6%"}, {"label": "ASML", "value": 5154.89, "gainPct": 65.15239413299967, "logo": "../holding-logos/ASML.png", "detail": "ASML · $5,155 gain · 65.2%"}, {"label": "COST", "value": 4641.08, "gainPct": 172.7286260848853, "logo": "../holding-logos/COST.png", "detail": "COST · $4,641 gain · 172.7%"}, {"label": "BRK/B", "value": 4392.06, "gainPct": 36.93572246110323, "logo": "../holding-logos/BRK-B.png", "detail": "BRK/B · $4,392 gain · 36.9%"}, {"label": "CRWD", "value": 3731.83, "gainPct": 79.65060562403286, "logo": "../holding-logos/CRWD.png", "detail": "CRWD · $3,732 gain · 79.7%"}, {"label": "TSLA", "value": 3077.7799999999997, "gainPct": 20.281082420355805, "logo": "../holding-logos/TSLA.png", "detail": "TSLA · $3,078 gain · 20.3%"}, {"label": "HOOD", "value": 2886.9599999999996, "gainPct": 48.70352687925339, "logo": "../holding-logos/HOOD.png", "detail": "HOOD · $2,887 gain · 48.7%"}, {"label": "PANW", "value": 2643.65, "gainPct": 62.98123653967104, "logo": "../holding-logos/PANW.png", "detail": "PANW · $2,644 gain · 63.0%"}, {"label": "INTC", "value": 2641.33, "gainPct": 161.18250829916033, "logo": "../holding-logos/INTC.png", "detail": "INTC · $2,641 gain · 161.2%"}, {"label": "AMZN", "value": 2637.84, "gainPct": 19.45302561568726, "logo": "../holding-logos/AMZN.png", "detail": "AMZN · $2,638 gain · 19.5%"}, {"label": "Other", "value": 38602.090000000004, "gainPct": 31.33987603070947, "detail": "Other · $38,602 gain"}], "accounts": [{"account": "Aijun_IRA ...819", "marketValue": 148624.12999999998, "weight": 37.73379922693307}, {"account": "Ning_IRA ...631", "marketValue": 129543.65, "weight": 32.88950509062081}, {"account": "Kevin_Individual ...360", "marketValue": 59147.32, "weight": 15.01676139460775}, {"account": "Kevin_Roth_IRA ...738", "marketValue": 36747.85, "weight": 9.32981739857083}, {"account": "Robinhood Investing", "marketValue": 36661.31000000001, "gainDollar": 9263.680000000002, "costBasis": 27397.63, "weight": 8.144038592388998}, {"account": "Ning_Individual ...240", "marketValue": 19812.39, "weight": 5.030116889267554}, {"account": "Robinhood Roth IRA", "marketValue": 19624.650000000005, "gainDollar": 1286.2399999999993, "costBasis": 18338.409999999996, "weight": 4.35947070527831}], "aiHardware": {"weight": 15.892450106217487, "count": 10, "symbols": ["TSM", "NVDA", "ASML", "MRVL", "AMD", "INTC", "AVGO", "ON", "MU", "SKHYV"]}, "aiRelated": {"weight": 30.684365803990712, "count": 15, "symbols": ["GOOG/GOOGL", "TSM", "AMZN", "NVDA", "ASML", "MRVL", "MSFT", "AMD", "INTC", "NBIS", "CRWV", "AVGO", "ON", "MU", "SKHYV"]}};
+
+    const tabs = Array.from(document.querySelectorAll(".tab"));
+    const tabPanels = Array.from(document.querySelectorAll(".tab-panel"));
+    function activateTab(id, updateHash) {
+      const aliases = { overview: "summary", changes: "summary", risk: "summary" };
+      const requested = aliases[id] || id;
+      const target = document.getElementById(requested) ? requested : "summary";
+      tabs.forEach(function (tab) {
+        const active = tab.dataset.tabTarget === target;
+        tab.setAttribute("aria-selected", active ? "true" : "false");
+        tab.tabIndex = active ? 0 : -1;
+      });
+      tabPanels.forEach(function (panel) { panel.hidden = panel.id !== target; });
+      if (updateHash) history.replaceState(null, "", "#" + target);
+    }
+    tabs.forEach(function (tab, index) {
+      tab.addEventListener("click", function () { activateTab(tab.dataset.tabTarget, true); });
+      tab.addEventListener("keydown", function (event) {
+        if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+        event.preventDefault();
+        const next = (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+        tabs[next].focus();
+        activateTab(tabs[next].dataset.tabTarget, true);
+      });
+    });
+    activateTab(window.location.hash.slice(1), false);
+    window.addEventListener("hashchange", function () { activateTab(window.location.hash.slice(1), false); });
+
+    const fmtMoney = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+    const fmtNum = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
+    const fmtPct = new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    const fmtRatio = new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+    function colorForGain(gainPct, index) {
+      if (gainPct >= 60) return '#087443';
+      if (gainPct >= 25) return '#16a163';
+      if (gainPct >= 8) return '#67b26f';
+      if (gainPct >= 0) return '#d6a84f';
+      if (gainPct >= -10) return '#d97059';
+      return '#b42318';
+    }
+
+    function polar(cx, cy, r, angle) {
+      const rad = (angle - 90) * Math.PI / 180;
+      return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+    }
+
+    function arcPath(cx, cy, r, start, end) {
+      const s = polar(cx, cy, r, end);
+      const e = polar(cx, cy, r, start);
+      const large = end - start <= 180 ? 0 : 1;
+      return `M ${cx} ${cy} L ${s.x} ${s.y} A ${r} ${r} 0 ${large} 0 ${e.x} ${e.y} Z`;
+    }
+
+    function drawPie(svgId, legendId, segments, centerTitle, centerValue) {
+      const svg = document.getElementById(svgId);
+      const legend = document.getElementById(legendId);
+      svg.innerHTML = '';
+      legend.innerHTML = '';
+      const total = segments.reduce((sum, d) => sum + Math.max(0, d.value), 0);
+      let angle = 0;
+      segments.forEach((seg, i) => {
+        const value = Math.max(0, seg.value);
+        const sweep = total ? value / total * 360 : 0;
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', arcPath(210, 210, 178, angle, angle + sweep));
+        const color = colorForGain(seg.gainPct, i);
+        path.setAttribute('fill', color);
+        path.setAttribute('stroke', '#fff');
+        path.setAttribute('stroke-width', '2');
+        path.appendChild(document.createElementNS('http://www.w3.org/2000/svg', 'title')).textContent = seg.detail;
+        svg.appendChild(path);
+        angle += sweep;
+
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        const logo = seg.logo ? logoMarkup({ logo: seg.logo, symbol: seg.label }) : '';
+        item.innerHTML = `<span class="swatch" style="background:${color}"></span><div>${logo}<strong>${seg.label}</strong><br><small>${fmtMoney.format(seg.value)} · ${fmtPct.format(total ? seg.value / total * 100 : 0)}%</small></div><span class="${seg.gainPct < 0 ? 'loss' : seg.gainPct > 0 ? 'gain' : 'flat'}">${fmtPct.format(seg.gainPct)}%</span>`;
+        legend.appendChild(item);
+      });
+      const hole = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      hole.setAttribute('cx', '210');
+      hole.setAttribute('cy', '210');
+      hole.setAttribute('r', '94');
+      hole.setAttribute('fill', '#fff');
+      svg.appendChild(hole);
+      const title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      title.setAttribute('x', '210');
+      title.setAttribute('y', '200');
+      title.setAttribute('text-anchor', 'middle');
+      title.setAttribute('fill', '#667085');
+      title.setAttribute('font-size', '16');
+      title.textContent = centerTitle;
+      svg.appendChild(title);
+      const value = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      value.setAttribute('x', '210');
+      value.setAttribute('y', '230');
+      value.setAttribute('text-anchor', 'middle');
+      value.setAttribute('fill', '#18212f');
+      value.setAttribute('font-size', '26');
+      value.setAttribute('font-weight', '760');
+      value.textContent = centerValue;
+      svg.appendChild(value);
+    }
+
+    function renderKpis() {
+      const s = data.summary;
+      const topSector = data.sectors[0] || { sector: 'n/a', weight: 0 };
+      const topFive = data.holdings.slice(0, 5);
+      const topFiveWeight = topFive.reduce((sum, h) => sum + h.weight, 0);
+      const cards = [
+        ['Market Value', fmtMoney.format(s.totalValue), `${s.holdingCount} holdings`],
+        ['Cost Basis', fmtMoney.format(s.totalCost), 'Combined accounts'],
+        ['Unrealized Gain', fmtMoney.format(s.totalGain), `${fmtPct.format(s.gainPct)}% total gain/loss`],
+        ['Largest Holding', summarySymbol(data.holdings[0]), `${fmtMoney.format(data.holdings[0].marketValue)} · ${fmtPct.format(data.holdings[0].weight)}%`],
+        ['Top Sector', `${fmtPct.format(topSector.weight)}%`, topSector.sector],
+        ['Top 5 Weight', `${fmtPct.format(topFiveWeight)}%`, topFive.map(summarySymbol).join(' ')],
+        ['AI Hardware %', `${fmtPct.format(data.aiHardware.weight)}%`, `<span class="summary-count">${data.aiHardware.count} holdings · chips, semis, equipment</span><span class="summary-symbol-list">${data.aiHardware.symbols.map(summarySymbolByName).join(' ')}</span>`],
+        ['AI Related %', `${fmtPct.format(data.aiRelated.weight)}%`, `<span class="summary-count">${data.aiRelated.count} holdings · hardware + cloud/platform</span><span class="summary-symbol-list">${data.aiRelated.symbols.map(summarySymbolByName).join(' ')}</span>`],
+        ['Accounts', String(s.accountCount), 'Included in aggregation'],
+      ];
+      document.getElementById('kpis').innerHTML = cards.map(c => `<div class="kpi"><div class="label">${c[0]}</div><div class="value">${c[1]}</div><div class="note">${c[2]}</div></div>`).join('');
+    }
+
+    function rowClass(value) {
+      if (value > 0) return 'gain';
+      if (value < 0) return 'loss';
+      return 'flat';
+    }
+
+    function ratioText(value) {
+      return value === null || value === undefined ? '--' : fmtRatio.format(value);
+    }
+
+    function logoMarkup(h) {
+      return `<span class="holding-logo change-logo"><img src="${h.logo}" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>${h.symbol.slice(0, 2)}</span></span>`;
+    }
+
+    function summarySymbol(h) {
+      return `<span class="summary-symbol">${logoMarkup(h)}<span class="summary-symbol-label">${h.symbol}</span></span>`;
+    }
+
+    function summarySymbolByName(symbol) {
+      const holding = data.holdings.find(h => h.symbol === symbol);
+      return holding ? summarySymbol(holding) : `<span class="summary-symbol-label">${symbol}</span>`;
+    }
+
+    function renderTable(filter = '') {
+      const needle = filter.trim().toLowerCase();
+      const rows = data.holdings.filter(h => !needle || h.symbol.toLowerCase().includes(needle) || h.description.toLowerCase().includes(needle) || h.sector.toLowerCase().includes(needle));
+      document.getElementById('holdingsBody').innerHTML = rows.map(h => `
+        <tr>
+          <td class="symbol-cell"><span class="holding-logo"><img src="${h.logo}" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>${h.symbol.slice(0, 2)}</span></span><strong>${h.symbol}</strong></td>
+          <td>${h.description}</td>
+          <td>${h.sector}</td>
+          <td class="num">${fmtNum.format(h.qty)}</td>
+          <td class="num">${fmtMoney.format(h.marketValue)}</td>
+          <td class="num"><div class="bar" title="${fmtPct.format(h.weight)}%"><span style="width:${Math.max(2, h.weight)}%"></span></div>${fmtPct.format(h.weight)}%</td>
+          <td class="num">${fmtMoney.format(h.costBasis)}</td>
+          <td class="num ${rowClass(h.gainDollar)}">${fmtMoney.format(h.gainDollar)}</td>
+          <td class="num ${rowClass(h.gainPct)}">${fmtPct.format(h.gainPct)}%</td>
+          <td class="num">${ratioText(h.pe)}</td>
+          <td class="num">${ratioText(h.forwardPe)}</td>
+          <td class="num">${ratioText(h.beta)}</td>
+          <td>${h.accounts.join(', ')}</td>
+        </tr>`).join('');
+    }
+
+    function renderSectors() {
+      const topFiveWeight = data.holdings.slice(0, 5).reduce((sum, h) => sum + h.weight, 0);
+      document.getElementById('sectorNote').textContent = `Top 5 holdings: ${fmtPct.format(topFiveWeight)}% of portfolio`;
+      document.getElementById('sectors').innerHTML = data.sectors.map(s => `
+        <div class="sector-row">
+          <div class="sector-main">
+            <strong>${s.sector}</strong>
+            <small>${s.holdingCount} holdings · ${s.topSymbols.join(', ')}</small>
+          </div>
+          <div class="sector-bar"><div class="bar" title="${fmtPct.format(s.weight)}%"><span style="width:${Math.max(2, s.weight)}%; background:${s.color}"></span></div></div>
+          <div class="num">${fmtMoney.format(s.marketValue)}</div>
+          <div class="num">${fmtPct.format(s.weight)}%</div>
+          <div class="num ${rowClass(s.gainPct)}">${fmtPct.format(s.gainPct)}%</div>
+        </div>`).join('');
+    }
+
+    function renderAccounts() {
+      document.getElementById('accountsList').innerHTML = data.accounts.map(a => `
+        <div class="account-row">
+          <strong>${a.account}</strong>
+          <span>${fmtMoney.format(a.marketValue)} · ${fmtPct.format(a.weight)}%</span>
+          <div class="bar" style="grid-column: 1 / -1;"><span style="width:${Math.max(2, a.weight)}%"></span></div>
+        </div>`).join('');
+    }
+
+    const versionSelect = document.getElementById('versionSelect');
+    if (versionSelect) {
+      versionSelect.addEventListener('change', event => {
+        if (event.target.value) window.location.href = event.target.value;
+      });
+    }
+
+    renderKpis();
+    drawPie('allocationChart', 'allocationLegend', data.allocation, 'Mkt Val', fmtMoney.format(data.summary.totalValue));
+    drawPie('gainChart', 'gainLegend', data.gainSegments, 'Gain $', fmtMoney.format(data.summary.totalGain));
+    renderSectors();
+    renderTable();
+    renderAccounts();
+    document.getElementById('filter').addEventListener('input', event => renderTable(event.target.value));
+  </script>
+</body>
+</html>

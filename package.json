@@ -1,0 +1,13 @@
+{
+  "name": "stock-holdings-percent-site",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "build": "node build-site.mjs",
+    "dev": "node preview-site.mjs"
+  },
+  "type": "module"
+}
