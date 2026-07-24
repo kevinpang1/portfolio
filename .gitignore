@@ -12,6 +12,7 @@ stock_dashboard_versions/imported_html/
 stock_dashboard_versions/sources/
 stock_dashboard_versions/stock_holdings_dashboard_*.html
 stock_dashboard_versions/stock_holdings_percent_dashboard_*.html
+!stock_dashboard_versions/stock_holdings_percent_dashboard_*.html
 pages_stock_dashboard_versions/
 
 # dependencies
