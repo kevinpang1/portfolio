@@ -1,6 +1,9 @@
 FUNDAMENTALS_SOURCE = "Finviz valuation and beta screeners"
 FUNDAMENTALS_SOURCE_URL = "https://finviz.com/screener.ashx?v=121"
 FUNDAMENTALS_FETCHED_ON = "2026-07-03"
+CAPE_SOURCE = "GuruFocus Shiller PE Ratio pages"
+CAPE_SOURCE_URL = "https://www.gurufocus.com/term/shiller-pe-ratio/"
+CAPE_FETCHED_ON = "2026-07-27"
 
 
 FUNDAMENTALS_BY_SYMBOL = {
@@ -78,6 +81,64 @@ FUNDAMENTALS_BY_SYMBOL = {
     "UPS": {"pe": 17.92, "forwardPe": 13.97},
     "V": {"pe": 31.84, "forwardPe": 24.29},
     "VST": {"pe": 25.22, "forwardPe": 13.32},
+}
+
+
+CAPE_BY_SYMBOL = {
+    "AAPL": 59.68,
+    "ADBE": 20.12,
+    "AMD": 431.36,
+    "AMZN": 80.59,
+    "ASML": 94.35,
+    "AVGO": 160.47,
+    "AXP": 31.03,
+    "BAC": 18.72,
+    "BX": 32.19,
+    "CMCSA": 5.81,
+    "COF": 15.85,
+    "COST": 67.64,
+    "CRM": 48.35,
+    "CVX": 22.99,
+    "DHI": 14.43,
+    "ELV": 15.43,
+    "FICO": 83.47,
+    "FISV": 16.44,
+    "GOOG/GOOGL": 49.57,
+    "GOOGL": 49.57,
+    "IBM": 22.58,
+    "INTC": 37.21,
+    "INTU": 30.20,
+    "ISRG": 71.47,
+    "JPM": 23.72,
+    "LULU": 14.18,
+    "LVMUY/LVMHF": 23.53,
+    "LVMUY": 23.53,
+    "MRK": 32.14,
+    "MRVL": 513.00,
+    "MS": 29.38,
+    "MSFT": 42.09,
+    "MU": 100.76,
+    "NKE": 13.24,
+    "NOK": 126.50,
+    "NOW": 156.42,
+    "NVO": 20.75,
+    "NVDA": 148.37,
+    "NFLX": 56.07,
+    "PANW": 875.11,
+    "PYPL": 12.87,
+    "REGN": 17.91,
+    "RTX": 43.05,
+    "SHOP": 618.42,
+    "SNPS": 73.05,
+    "TCEHY": 24.04,
+    "TSLA": 313.17,
+    "TSM": 56.20,
+    "TTD": 43.23,
+    "UAL": 25.92,
+    "UNH": 22.73,
+    "UPS": 13.55,
+    "V": 47.43,
+    "VST": 154.13,
 }
 
 
@@ -176,6 +237,8 @@ BETA_BY_SYMBOL = {
 
 def fundamentals_for_symbol(symbol):
     fundamentals = dict(FUNDAMENTALS_BY_SYMBOL.get(symbol, {}))
+    if symbol in CAPE_BY_SYMBOL:
+        fundamentals["cape"] = CAPE_BY_SYMBOL[symbol]
     if symbol in BETA_BY_SYMBOL:
         fundamentals["beta"] = BETA_BY_SYMBOL[symbol]
     return fundamentals
