@@ -92,9 +92,10 @@
     .version-month { margin: 0; }
     .version-month h3 { margin: 0 0 10px; font-size: 15px; color: var(--ink); }
     .calendar-weekdays, .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+    .calendar-grid { grid-auto-rows: 40px; }
     .calendar-weekdays { margin-bottom: 4px; color: var(--muted); font-size: 10px; font-weight: 700; text-align: center; text-transform: uppercase; }
-    .calendar-day { min-height: 30px; padding: 3px 2px; border: 1px solid transparent; border-radius: 6px; text-align: center; }
-    .calendar-day.is-empty { min-height: 0; }
+    .calendar-day { height: 40px; min-height: 40px; padding: 3px 2px; border: 1px solid transparent; border-radius: 6px; text-align: center; }
+    .calendar-day.is-empty { min-height: 40px; }
     .calendar-day-number { display: block; color: var(--muted); font-size: 11px; }
     .calendar-version-links { display: flex; justify-content: center; gap: 3px; margin-top: 3px; }
     .calendar-version-link { display: inline-grid; place-items: center; width: 12px; height: 12px; min-width: 12px; border-radius: 50%; background: #16a34a; text-decoration: none; }
@@ -318,7 +319,7 @@
           })();
         </script></div>
         <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false" title="Switch to dark mode"><span class="theme-toggle-label">Dark mode</span></button>
-        <div class="stamp">Source as of 05:14 PM ET, 06/05/2026<br>Dashboard generated 2026-07-31 16:41</div>
+        <div class="stamp">Source as of 05:14 PM ET, 06/05/2026<br>Dashboard generated 2026-07-31 16:51</div>
       </div>
     </header>
 
