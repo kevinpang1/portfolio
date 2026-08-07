@@ -1,1 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="ALAB logo"><rect width="100" height="100" rx="14" fill="#7c3aed"/><text x="50" y="54" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" letter-spacing="0">ALAB</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Astera Labs logo">
+  <rect width="100" height="100" rx="14" fill="#eef2f7"/>
+  <path d="M18 74 43 25h15L32 74H18Z" fill="#64748b"/>
+  <path d="m43 25 39 49H63L52 58 43 74H27l18-31 5-9Z" fill="#1d4ed8"/>
+  <path d="M49 47h14l8 12H57Z" fill="#94a3b8"/>
+</svg>
