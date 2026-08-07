@@ -1,6 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Astera Labs logo">
-  <rect width="100" height="100" rx="14" fill="#eef2f7"/>
-  <path d="M18 74 43 25h15L32 74H18Z" fill="#64748b"/>
-  <path d="m43 25 39 49H63L52 58 43 74H27l18-31 5-9Z" fill="#1d4ed8"/>
-  <path d="M49 47h14l8 12H57Z" fill="#94a3b8"/>
+  <rect width="100" height="100" rx="14" fill="#f0f4fc"/>
+  <path d="M22 67 46 23c1-2 4-3 5 0l3 5c1 2 1 4 0 6L33 66h33c2 0 3 1 4 2l3 4H25c-5 0-7-3-3-5Z" fill="#686a71"/>
+  <path d="m38 58 14-25c2-4 6-4 8 0l21 37h-7L58 40 49 57h14l4 6H41c-3 0-5-3-3-5Z" fill="#447fc4"/>
 </svg>
