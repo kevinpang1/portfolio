@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Applied Materials logo">
+  <rect width="100" height="100" rx="14" fill="#fff"/>
+  <circle cx="50" cy="42" r="25" fill="#0b63ce"/>
+  <path d="M30 55 43 29h7l-8 16 8-5 8 5-8-16h7l13 26h-9l-4-8-7-4-7 4-4 8H30Z" fill="#fff"/>
+  <text x="50" y="84" text-anchor="middle" fill="#0b63ce" font-family="Arial, Helvetica, sans-serif" font-size="7" font-weight="700">APPLIED</text>
+</svg>
