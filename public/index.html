@@ -390,7 +390,7 @@
         </script></div>
           <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false" title="Switch to dark mode"><span class="theme-toggle-label">Dark mode</span></button>
         </div>
-        <div class="stamp">Source as of 05:24 PM ET, 09/18/2026<br>Metrics checked 2026-09-18<br>Dashboard generated 2026-09-21 10:40<br>Source commit e0059c7</div>
+        <div class="stamp">Source as of 05:24 PM ET, 09/18/2026<br>Metrics checked 2026-09-18<br>Dashboard generated 2026-09-21 10:44<br>Source commit 6e4123e</div>
       </div>
     </header>
 
@@ -996,16 +996,15 @@ Since last update: 0.0%" data-center-label="Fixed Income" data-center-value="0.2
           <div class="holdings-filters">
             <input id="filter" type="search" placeholder="Filter ticker, company, or sector" aria-label="Search holdings">
             <select id="sectorFilter" aria-label="Filter holdings by sector"><option value="">All sectors</option><option value="Alternatives / Private Markets">Alternatives / Private Markets</option><option value="Communications &amp; Media">Communications &amp; Media</option><option value="Consumer Discretionary">Consumer Discretionary</option><option value="Consumer Staples">Consumer Staples</option><option value="Crypto / Gold">Crypto / Gold</option><option value="Energy &amp; Utilities">Energy &amp; Utilities</option><option value="Financials">Financials</option><option value="Fixed Income">Fixed Income</option><option value="Healthcare">Healthcare</option><option value="Industrials &amp; Aerospace">Industrials &amp; Aerospace</option><option value="International ETFs">International ETFs</option><option value="Internet / Software">Internet / Software</option><option value="Real Estate / Housing">Real Estate / Housing</option><option value="Technology &amp; Semiconductors">Technology &amp; Semiconductors</option><option value="Travel &amp; Leisure">Travel &amp; Leisure</option><option value="US Equity ETFs">US Equity ETFs</option></select>
-            <select id="alertFilter" aria-label="Filter holdings by technical alert"><option value="">All alert statuses</option><option value="upside">Upside breakout</option><option value="downside">Downside breakdown</option><option value="both">Both alerts</option><option value="none">No alert</option><option value="unavailable">Awaiting data</option></select>
             <div class="ai-filter-group" role="group" aria-label="AI exposure filters">
               <button class="filter-toggle" type="button" data-filter-key="aiHardware" aria-pressed="false">AI Hardware</button>
               <button class="filter-toggle" type="button" data-filter-key="aiRelated" aria-pressed="false">AI Related</button>
             </div>
             <div class="valuation-filter-group" role="group" aria-label="Valuation filters">
-              <button class="filter-toggle" type="button" data-filter-key="dcf-status" data-filter-value="overvalued" aria-pressed="false" title="Show holdings where DCF is below current price">DCF Overvalued</button>
-              <button class="filter-toggle" type="button" data-filter-key="dcf-status" data-filter-value="undervalued" aria-pressed="false" title="Show holdings where DCF is above current price">DCF Undervalued</button>
-              <button class="filter-toggle" type="button" data-filter-key="pe-status" data-filter-value="overvalued" aria-pressed="false" title="Show holdings where P/E Cross-Check is below current price">P/E Overvalued</button>
-              <button class="filter-toggle" type="button" data-filter-key="pe-status" data-filter-value="undervalued" aria-pressed="false" title="Show holdings where P/E Cross-Check is above current price">P/E Undervalued</button>
+              <button class="filter-toggle" type="button" data-filter-key="dcfStatus" data-filter-value="overvalued" aria-pressed="false" title="Show holdings where DCF is below current price">DCF Overvalued</button>
+              <button class="filter-toggle" type="button" data-filter-key="dcfStatus" data-filter-value="undervalued" aria-pressed="false" title="Show holdings where DCF is above current price">DCF Undervalued</button>
+              <button class="filter-toggle" type="button" data-filter-key="peStatus" data-filter-value="overvalued" aria-pressed="false" title="Show holdings where P/E Cross-Check is below current price">P/E Overvalued</button>
+              <button class="filter-toggle" type="button" data-filter-key="peStatus" data-filter-value="undervalued" aria-pressed="false" title="Show holdings where P/E Cross-Check is above current price">P/E Undervalued</button>
             </div>
           </div>
         </div>
@@ -1185,7 +1184,6 @@ Since last update: 0.0%" data-center-label="Fixed Income" data-center-value="0.2
     });
     const filterInput = document.getElementById("filter");
     const sectorFilter = document.getElementById("sectorFilter");
-    const alertFilter = document.getElementById("alertFilter");
     const aiFilterButtons = Array.from(document.querySelectorAll(".filter-toggle[data-filter-key^='ai']"));
     const valuationFilterButtons = Array.from(document.querySelectorAll(".valuation-filter-group .filter-toggle"));
     const activeAiFilters = new Set();
@@ -1197,19 +1195,16 @@ Since last update: 0.0%" data-center-label="Fixed Income" data-center-value="0.2
     function applyHoldingsFilters() {
       const query = filterInput.value.trim().toLowerCase();
       const sector = sectorFilter.value;
-      const alert = alertFilter.value;
       rows.forEach(function (row) {
         const matchesQuery = row.dataset.filter.includes(query);
         const matchesSector = !sector || row.dataset.sector === sector;
-        const matchesAlert = !alert || row.dataset.alert === alert;
         const matchesAi = Array.from(activeAiFilters).every(function (key) { return row.dataset[key] === "true"; });
         const matchesValuation = Array.from(activeValuationFilters.entries()).every(function ([key, values]) { return values.has(row.dataset[key]); });
-        row.style.display = matchesQuery && matchesSector && matchesAlert && matchesAi && matchesValuation ? "" : "none";
+        row.style.display = matchesQuery && matchesSector && matchesAi && matchesValuation ? "" : "none";
       });
     }
     filterInput.addEventListener("input", applyHoldingsFilters);
     sectorFilter.addEventListener("change", applyHoldingsFilters);
-    alertFilter.addEventListener("change", applyHoldingsFilters);
     aiFilterButtons.forEach(function (button) {
       button.addEventListener("click", function () {
         const key = button.dataset.filterKey;
