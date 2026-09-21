@@ -3,6 +3,7 @@
 # Local builders and source data are not needed for the hosted site.
 build_stock_dashboard.py
 build_stock_percent_dashboard.py
+build_portfolio_valuation_model.mjs
 stock_supplemental_sources.py
 stock_holdings_dashboard.html
 stock_holdings_percent_dashboard.html
