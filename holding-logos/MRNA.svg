@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Moderna logo">
+  <rect width="100" height="100" rx="14" fill="#fff"/>
+  <text x="50" y="49" text-anchor="middle" fill="#dc3a4a" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="600" letter-spacing="0">moderna</text>
+  <rect x="24" y="59" width="8" height="4" rx="2" fill="#79bde8"/>
+  <rect x="36" y="59" width="8" height="4" rx="2" fill="#54a8dd"/>
+  <rect x="48" y="59" width="8" height="4" rx="2" fill="#318ed0"/>
+  <rect x="60" y="59" width="8" height="4" rx="2" fill="#1874bc"/>
+  <rect x="72" y="59" width="5" height="4" rx="2" fill="#0f5fa7"/>
+</svg>
